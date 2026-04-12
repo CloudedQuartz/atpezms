@@ -137,7 +137,9 @@ Consequences:
 
 Hardware devices (POS terminals, turnstiles, kiosks) will retry requests on network timeout. Without idempotency guarantees, retries could produce duplicate charges and inventory corruption.
 
-**Rule:** All write operations originating from hardware devices must include a client-generated idempotency key. The system guarantees at-most-once processing for any given key. If a request with a previously seen key arrives, the system returns the original response without re-executing the operation.
+**Rule:** All write operations originating from hardware devices must include a client-generated idempotency key.
+
+**Guarantee (commit-based):** The system guarantees at-most-once *committed* processing for any given key. If a request with a previously seen key has already committed, the system returns the original response without re-executing the operation. If a request did not commit (rolled back or crashed before commit), a retry may execute again.
 
 **Scope:** This applies to device-originated operations (POS charges, turnstile scans, kiosk reservations). Staff dashboard operations in a browser do not require idempotency keys.
 
@@ -187,7 +189,7 @@ Two distinct notification paths exist:
 
 Every wristband scan in the system (ride entry, POS charge, kiosk reservation, gate exit) generates a scan event in the Telemetry context. This data serves SE-3 (duplicate/unauthorized RFID detection) and FR-MG2 (congestion heat map).
 
-**Rule:** The context processing a wristband scan is responsible for calling the Telemetry service to log the scan event. This is a fire-and-forget call that must not block the primary operation. If the telemetry log fails, the primary operation still succeeds.
+**Rule:** The context processing a wristband scan is responsible for calling the Telemetry service to log the scan event. This is a fire-and-forget call that must not be on the PR-1 critical path. Prefer after-commit asynchronous logging; if the telemetry log fails, the primary operation still succeeds.
 
 ---
 
