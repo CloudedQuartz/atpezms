@@ -2,7 +2,7 @@
 
 This document is the **Level 1 Global Blueprint** required by `DESIGN_RULES.md`. It defines the system architecture, bounded contexts, cross-cutting rules, and technology decisions for ATPEZMS. All vertical slice designs must align with this blueprint, and if a slice reveals a flaw here, this document is updated first.
 
-This document defines **what** the system is and **why** it is shaped this way. It does not define **how** things are implemented -- that belongs in `implementation.md` (global standards) and per-slice design/implementation documents.
+This document defines **what** the system is and **why** it is shaped this way. It does not define **how** things are implemented -- that belongs in `IMPLEMENTATION.md` (global standards) and per-slice design/implementation documents.
 
 ---
 
@@ -111,7 +111,7 @@ These rules apply across all bounded contexts. They are architectural constraint
 
 ### 3.2 Error Categories
 
-Business errors are grouped into categories with fixed HTTP status semantics. The exception class hierarchy that implements these categories is defined in `implementation.md`.
+Business errors are grouped into categories with fixed HTTP status semantics. The exception class hierarchy that implements these categories is defined in `IMPLEMENTATION.md`.
 
 | Category | HTTP Status | When Used |
 |----------|------------|-----------|
@@ -171,10 +171,10 @@ Each slice design must identify which of its fields, if any, contain PII.
 
 ### 3.8 Audit and Traceability
 
-- **Common entity fields:** Every entity carries `id`, `createdAt`, and `updatedAt` for basic traceability. The mechanism for populating these is defined in `implementation.md`.
+- **Common entity fields:** Every entity carries `id`, `createdAt`, and `updatedAt` for basic traceability. The mechanism for populating these is defined in `IMPLEMENTATION.md`.
 - **Accountability fields:** Entities where change accountability matters (pricing configuration, user management, park settings) additionally carry `createdBy` and `updatedBy`.
 - **Soft-delete:** The default for record deletion is hard-delete. Entities that must remain traceable use soft-delete (`deletedAt`). Specifically: lost-and-found records (SF-4), incidents (SF-3), and configuration audit records (SE-2).
-- **High-impact action logging:** Administrative actions (price changes, capacity changes, user role changes, emergency overrides) are logged to an immutable audit trail. The audit mechanism is defined in `implementation.md`.
+- **High-impact action logging:** Administrative actions (price changes, capacity changes, user role changes, emergency overrides) are logged to an immutable audit trail. The audit mechanism is defined in `IMPLEMENTATION.md`.
 
 ### 3.9 Notification Architecture
 
