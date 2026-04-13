@@ -132,25 +132,34 @@ Performance index for hot path:
 
 Phase 1 must satisfy SE-1 for visitor PII.
 
+Implemented in: `com.atpezms.atpezms.common.converter.StringEncryptionConverter`
+
+Global convention now established in `IMPLEMENTATION.md` §13. This section records the Phase 1-specific decisions that led to the global standard.
+
 Implementation choice:
 
 - JPA `AttributeConverter<String, String>` that encrypts/decrypts selected String fields.
+- Algorithm: AES/GCM/NoPadding (authenticated encryption -- confidentiality + integrity).
+- Stored form: `Base64( IV[12 bytes] || ciphertext+tag )`.
+- IV: 12-byte random nonce generated fresh per `convertToDatabaseColumn` call.
+- Tag: 128-bit GCM authentication tag, automatically appended by the JCE Cipher.
+- Key: 256-bit (32 bytes), injected via `${atpezms.encryption.key}` application property as a **Base64-encoded** string. The converter Base64-decodes it at startup and validates the 32-byte length.
 
-Encryption details (kept simple and explainable):
+Key management per profile:
 
-- Algorithm: AES-GCM (authenticated encryption).
-- Stored form: Base64 encoding of `iv || ciphertext || tag`.
-- Key: provided via an environment variable (not committed).
+- `test`: fixed committed key (in-memory DB, no real PII, makes tests deterministic).
+- `dev`: same placeholder key with instructions in `application-dev.properties` to replace before use with real data.
+- production: inject via environment variable or secrets manager.
 
 Rules:
 
-- Only PII fields (name/email/phone) use the converter.
+- Only PII fields (first_name_enc, last_name_enc, email_enc, phone_enc) use `@Convert(converter = StringEncryptionConverter.class)`.
 - Never log plaintext PII.
-- Never log ciphertext either, because it is still sensitive.
+- Never compare encrypted columns in JPQL/SQL for equality -- decrypt first, compare in Java.
 
-Testing:
+Testing (complete):
 
-- Unit tests verifying that converter round-trips values and produces different ciphertext for the same plaintext (random IV).
+- `StringEncryptionConverterTest`: pure unit test (no Spring context). Tests: round-trip correctness (ASCII and Unicode), different ciphertext per call (random IV), null in/null out for nullable fields, wrong-length key rejected at construction, GCM authentication tag tamper detection.
 
 ---
 
