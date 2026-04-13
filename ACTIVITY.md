@@ -40,3 +40,11 @@ Added the `SeasonalPeriod` JPA entity and `SeasonType` enum mapped to the seeded
 
 ## 2026-04-13 - Modelled PassType Configuration Entity (Phase 1)
 Added the `PassType` JPA entity and `PassTypeCode` enum mapped to the seeded `pass_types` table. Pass types are configuration data that define which categories of tickets can be sold (FR-VT1) and will be returned by the planned `GET /api/ticketing/pass-types` endpoint (see `PHASE_01_TICKETING_DESIGN.md`) once implemented. The entity includes basic checks to fail fast on invalid combinations (e.g., `MULTI_DAY` requires a positive multi-day count) and the database schema enforces this invariant via a CHECK constraint.
+
+## 2026-04-13 - Implemented PassType Configuration Endpoint (Phase 1)
+Implemented the `GET /api/ticketing/pass-types` endpoint returning active pass types ordered by code.
+- Added `PassTypeRepository` (read-only Spring Data repository)
+- Added `PassTypeService` (read-only transaction)
+- Added `PassTypeResponse` (record DTO)
+- Added `PassTypeController` (delegates to service)
+- Wrote full-context integration test using `@SpringBootTest` and `@AutoConfigureMockMvc` (using Boot 4's `spring-boot-starter-webmvc-test` module) to verify end-to-end reading from the Flyway-seeded H2 database.
