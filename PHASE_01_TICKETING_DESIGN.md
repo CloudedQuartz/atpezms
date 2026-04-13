@@ -439,7 +439,26 @@ Request fields:
 - `visitorId` (required)
 - `rfidTag` (required)
 - `passTypeId` (required)
-- `visitDate` (optional; defaults to "today" in server timezone)
+- `visitDate` (optional; defaults to "today" in UTC; must not be in the past)
+
+Visit date rules:
+
+- If `visitDate` is omitted, the server sets it to `LocalDate.now(UTC)`.
+- If `visitDate` is provided, it must be `>= LocalDate.now(UTC)`.
+
+Rationale:
+
+- We anchor the default and the validation to UTC to avoid subtle timezone bugs
+  where a request is considered "future" or "past" depending on the JVM's
+  default timezone. This matches the existing UTC anchoring used in Ticketing
+  entity validation.
+
+Wristband handling:
+
+- If `rfidTag` is not known to the system, Ticketing creates a new Wristband row
+  in `IN_STOCK` and then activates it as part of the same issuance transaction.
+- If the wristband exists but is `ACTIVE` or `DEACTIVATED`, issuance fails with
+  a state conflict.
 
 Response fields:
 
@@ -456,8 +475,21 @@ Failure cases (examples):
 - 404 `VISITOR_NOT_FOUND`
 - 404 `PASS_TYPE_NOT_FOUND`
 - 409 `WRISTBAND_ALREADY_ACTIVE`
+- 409 `VISITOR_ALREADY_IN_PARK`
 - 422 `CAPACITY_EXCEEDED` (sold out)
 - 422 `PASS_TYPE_INACTIVE`
+- 422 `PASS_TYPE_NOT_SUPPORTED_YET` (e.g. `MULTI_DAY` in Phase 1.1)
+- 422 `VISIT_DATE_IN_PAST`
+
+Phase 1.1 enforcement:
+
+- If the selected PassType is `MULTI_DAY`, this endpoint rejects the request as
+  a business rule violation. Multi-day issuance is implemented in Phase 1.2.
+
+Entitlements note:
+
+- Phase 1.1 issues the Ticket + Visit and does not yet populate
+  `access_entitlements`. Entitlement creation rules are implemented in Phase 1.3.
 
 ### 7.4 RFID Resolution Contract (Service-Level)
 

@@ -81,3 +81,6 @@ Implemented the `GET /api/ticketing/pass-types` endpoint returning active pass t
 - Added `PassTypeResponse` (record DTO)
 - Added `PassTypeController` (delegates to service)
 - Wrote full-context integration test using `@SpringBootTest` and `@AutoConfigureMockMvc` (using Boot 4's `spring-boot-starter-webmvc-test` module) to verify end-to-end reading from the Flyway-seeded H2 database.
+
+## 2026-04-13 - Clarified Phase 1.1 Visit Issuance Rules (Docs)
+Documented the explicit Phase 1.1 issuance decisions (defaults, invariants, and edge cases) as a pre-implementation checklist so behavior is explainable and testable before `POST /api/ticketing/visits` is implemented.

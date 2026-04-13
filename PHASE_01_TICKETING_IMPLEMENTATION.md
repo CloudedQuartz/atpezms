@@ -185,6 +185,14 @@ Transaction rules:
 - Capacity increment, wristband activation, ticket creation, and visit creation happen inside the same transaction.
 - If any invariant fails (capacity exceeded, wristband already active, visitor not found), we throw a runtime exception from the global exception hierarchy so Spring rolls back the transaction.
 
+Agreed Phase 1.1 rules (see `PHASE_01_TICKETING_DESIGN.md` §7.3):
+
+- `visitDate` defaults to `LocalDate.now(UTC)`.
+- `visitDate` must not be in the past (relative to `LocalDate.now(UTC)`).
+- If `rfidTag` is unknown, issuance auto-creates a new Wristband in `IN_STOCK` and then activates it.
+- If the selected PassType is `MULTI_DAY`, issuance is rejected in Phase 1.1 (implemented in Phase 1.2).
+- Phase 1.1 does not create `AccessEntitlement` rows; entitlement creation rules are implemented in Phase 1.3.
+
 Capacity enforcement implementation:
 
 - Implement the guarded increment as a repository `@Modifying` update query and check the affected row count.
