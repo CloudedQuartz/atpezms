@@ -1,7 +1,9 @@
 package com.atpezms.atpezms.ticketing.repository;
 
 import com.atpezms.atpezms.ticketing.entity.PassType;
+import com.atpezms.atpezms.ticketing.entity.PassTypeCode;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /**
@@ -16,4 +18,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
  */
 public interface PassTypeRepository extends JpaRepository<PassType, Long> {
 	List<PassType> findByActiveTrueOrderByCodeAsc();
+    Optional<PassType> findByCode(PassTypeCode code);
 }
