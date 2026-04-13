@@ -63,11 +63,24 @@ New packages (created only when populated):
 - `com.atpezms.atpezms.ticketing.entity`
 - `com.atpezms.atpezms.ticketing.dto`
 
-Because Phase 1 seeds Park reference tables and needs read access, we introduce a minimal Park query surface:
+Because Phase 1 seeds Park reference tables and needs read access, we will introduce a minimal Park query surface when the first Ticketing service needs to read these tables:
 
 - `com.atpezms.atpezms.park.service` (read-only queries)
 - `com.atpezms.atpezms.park.repository`
 - `com.atpezms.atpezms.park.entity`
+
+Current state in code (Phase 1, incremental):
+
+- Only `park.entity` exists so far; `park.repository`/`park.service` will be added just-in-time when Ticketing needs real DB reads.
+
+Park entities modelled so far:
+
+- `Zone` (`zones`)
+- `ParkConfiguration` (`park_configurations`)
+
+Planned next (needed before implementing Phase 1 pricing lookup):
+
+- `SeasonalPeriod` (`seasonal_periods`)
 
 Park controllers (CRUD) are deferred to Phase 2.
 

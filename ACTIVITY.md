@@ -31,3 +31,6 @@ Added a shared `BaseEntity` `@MappedSuperclass` with `id`, `createdAt`, and `upd
 
 ## 2026-04-13 - Modelled Zone Reference Entity (Phase 1)
 Added the minimal `Zone` JPA entity (`code`, `name`) mapped to the seeded `zones` table so Ticketing can reference zone identifiers for entitlement modelling without waiting for Phase 2 Park CRUD endpoints.
+
+## 2026-04-13 - Modelled ParkConfiguration Reference Entity (Phase 1)
+Added the `ParkConfiguration` JPA entity mapped to the seeded `park_configurations` table so Ticketing can read park-wide capacity settings as data rather than a hardcoded constant. The entity extends `BaseEntity` to inherit auditing timestamps and includes a simple fail-fast constructor check that mirrors the database constraint (`max_daily_capacity > 0`). Updated Phase 1 implementation notes to reflect which minimal Park entities exist in code versus which are planned next.
