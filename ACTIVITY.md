@@ -44,6 +44,9 @@ Added the `PassType` JPA entity and `PassTypeCode` enum mapped to the seeded `pa
 ## 2026-04-13 - Implemented AES-GCM PII Encryption Converter (Phase 1)
 Added `StringEncryptionConverter` in `common.converter` to satisfy SE-1 (encrypt visitor PII at rest). The converter implements JPA's `AttributeConverter<String, String>` and is wired as a Spring `@Component` so Hibernate resolves it from the Spring context, enabling `@Value` injection of the AES-256 key. Stored format is `Base64(IV || ciphertext+tag)` with a fresh 12-byte random IV per call, making ciphertexts non-deterministic and tamper-detectable via the GCM authentication tag. Global PII encryption conventions codified in `IMPLEMENTATION.md` §13.
 
+## 2026-04-13 - Modelled Visitor Entity With Encrypted PII (Phase 1)
+Added the `Visitor` JPA entity mapped to the `visitors` table. PII fields (firstName, lastName, email, phone) use `@Convert(converter = StringEncryptionConverter.class)` so Hibernate transparently encrypts them on write and decrypts on read; the `_enc` column suffix signals this to anyone reading the schema. Non-PII operational fields (dateOfBirth, heightCm) are stored plain for pricing and eligibility hot-path performance. All business invariants (non-blank names, non-null/non-future dateOfBirth using explicit UTC, positive heightCm) are enforced in both the constructor and `@PrePersist`/`@PreUpdate` lifecycle callbacks.
+
 ## 2026-04-13 - Implemented PassType Configuration Endpoint (Phase 1)
 Implemented the `GET /api/ticketing/pass-types` endpoint returning active pass types ordered by code.
 - Added `PassTypeRepository` (read-only Spring Data repository)

@@ -71,7 +71,7 @@ Because Phase 1 seeds Park reference tables and needs read access, we will intro
 
 Current state in code (Phase 1, incremental):
 
-- `ticketing.entity` is populated with the `PassType` configuration entity (plus `PassTypeCode`).
+- `ticketing.entity` contains: `PassType` (configuration entity, `PassTypeCode` enum), `Visitor` (PII entity with AES-GCM encrypted fields).
 - Only `park.entity` exists so far; `park.repository`/`park.service` will be added just-in-time when Ticketing needs real DB reads.
 
 Park entities modelled so far:
