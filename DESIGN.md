@@ -103,6 +103,8 @@ These rules apply across all bounded contexts. They are architectural constraint
 
 ### 3.1 API Response Convention
 
+API endpoint paths are grouped by bounded context under `/api/<context>/...` (e.g., `/api/ticketing/visits`, `/api/billing/transactions`). This keeps the HTTP surface aligned with the bounded-context package layout.
+
 **Success responses** return the resource (DTO or collection) directly as the response body, with the appropriate HTTP status code. There is no wrapper envelope -- HTTP status codes already communicate success/failure, so wrapping in `{"success": true, "data": ...}` is redundant.
 
 **Paginated collections** use Spring Data's `Page<T>` serialization format.
@@ -601,25 +603,24 @@ Each slice follows the Level 2 Mini-Waterfall from `DESIGN_RULES.md`: detailed d
 
 | Phase | Slice | Key Deliverables | Depends On |
 |-------|-------|-----------------|------------|
-| 0 | **Global Infrastructure** | Project structure, base entity class, exception handling, API error response, Flyway configuration, H2 setup. Build passes. | Nothing |
-| 1 | **Park** | Zone, ParkConfiguration, SeasonalCalendar. Reference data CRUD. | Phase 0 |
-| 2 | **Identity + Security Skeleton** | User, Role. Staff CRUD. JWT authentication filter and security configuration. All subsequent slices add role restrictions as they go. | Phase 0 |
-| 3 | **Ticketing** | Visitor, Wristband, Visit, Ticket, PassType, AccessEntitlement. Registration, wristband issuance, RFID resolution, capacity enforcement, exit orchestration. | Phase 1 (zones), Phase 2 (roles) |
-| 4 | **Billing** | Transaction, Bill. Record-transaction API, bill aggregation, payment processing (via mocked gateway). | Phase 3 (visits) |
-| 5 | **Telemetry** | ScanEvent. Logging service, duplicate detection queries. | Phase 1 (zones) |
-| 6 | **Rides** | Ride, QueueEntry, RideSession. Eligibility check, turnstile signaling, queue tracking, alternate suggestions. | Phase 3 (RFID/entitlements), Phase 5 (scan logging) |
-| 7 | **Food** | FoodOutlet, MenuItem, FoodInventoryItem, FoodOrder. Order flow, inventory, low-stock alerts. Discount extension point (no-op until Loyalty). | Phase 3 (RFID), Phase 4 (billing) |
-| 8 | **Merchandise** | Store, Product, StoreInventory, MerchandisePurchase. Purchase flow, cross-store lookup. Discount extension point. | Phase 3 (RFID), Phase 4 (billing) |
-| 9 | **Events** | Event, EventSchedule, Reservation. Reservation flow, hold mechanism, cancellation notifications. | Phase 3 (RFID), Phase 4 (billing, optional) |
-| 10 | **Safety** | LostItemReport, FoundItem, Incident. Item matching, incident logging, emergency override. | Phase 0 |
+| 1 | **Ticketing** | Visitor, Wristband, Visit, Ticket, PassType, AccessEntitlement. Registration, wristband issuance, RFID resolution, capacity enforcement, exit orchestration. | None (Foundational) |
+| 2 | **Park** | Zone, ParkConfiguration, SeasonalCalendar. Reference data CRUD. | Phase 1 |
+| 3 | **Identity + Security Skeleton** | User, Role. Staff CRUD. JWT authentication filter and security configuration. All subsequent slices add role restrictions as they go. | Phase 1 |
+| 4 | **Billing** | Transaction, Bill. Record-transaction API, bill aggregation, payment processing (via mocked gateway). | Phase 1 (visits) |
+| 5 | **Telemetry** | ScanEvent. Logging service, duplicate detection queries. | Phase 2 (zones) |
+| 6 | **Rides** | Ride, QueueEntry, RideSession. Eligibility check, turnstile signaling, queue tracking, alternate suggestions. | Phase 1 (RFID/entitlements), Phase 5 (scan logging) |
+| 7 | **Food** | FoodOutlet, MenuItem, FoodInventoryItem, FoodOrder. Order flow, inventory, low-stock alerts. Discount extension point (no-op until Loyalty). | Phase 1 (RFID), Phase 4 (billing) |
+| 8 | **Merchandise** | Store, Product, StoreInventory, MerchandisePurchase. Purchase flow, cross-store lookup. Discount extension point. | Phase 1 (RFID), Phase 4 (billing) |
+| 9 | **Events** | Event, EventSchedule, Reservation. Reservation flow, hold mechanism, cancellation notifications. | Phase 1 (RFID), Phase 4 (billing, optional) |
+| 10 | **Safety** | LostItemReport, FoundItem, Incident. Item matching, incident logging, emergency override. | Phase 1 |
 | 11 | **Loyalty** | LoyaltyAccount, LoyaltyTier, PointTransaction. Point accrual, discount lookup, recommendations. Replaces no-op discount hooks in Food/Merchandise. | Phase 4 (billing), Phase 7-8 (discount hooks) |
 | 12 | **Analytics** | Report endpoints, visitor forecasts, congestion map, revenue breakdown, inventory reports, loyalty metrics. CSV/PDF export. | All prior phases (read access) |
 
-**Dependency rationale:**
-- Infrastructure (0) is the foundation for everything.
-- Park (1) provides zones and config that most contexts reference.
-- Identity + Security (2) establishes user/role infrastructure and authentication early, avoiding a retrofit.
-- Ticketing (3) creates visitors, wristbands, visits, and the RFID resolution service that all scan-processing contexts depend on.
+**Dependency rationale & YAGNI Principle:**
+- We do not have a separate "Infrastructure" phase. Dependencies (Spring Data JPA, Validation, Flyway, etc.) and global elements (Exception Handlers, Base Entities) are introduced *Just-In-Time* (YAGNI) as the first vertical slice demands them.
+- Ticketing (1) is the core foundational slice. It creates visitors, wristbands, visits, and the RFID resolution service that all scan-processing contexts depend on. It also introduces the initial Spring Boot skeleton and required database dependencies organically.
+- Park (2) provides zones and config that most contexts reference.
+- Identity + Security (3) establishes user/role infrastructure and authentication early, avoiding a retrofit.
 - Billing (4) is the ledger that Food, Merchandise, and Events write to.
 - Telemetry (5) is in place before Rides, so scan logging works from the first ride scan.
 - Rides (6) is the highest-priority operational feature.

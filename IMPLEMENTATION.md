@@ -39,7 +39,11 @@ Sub-packages are created only when the context has classes of that type. An empt
 
 ### 1.2 Gradle Dependencies
 
-Dependencies are added incrementally as slices need them, not all upfront. The Global Infrastructure slice (Phase 0) adds the baseline: `spring-boot-starter-webmvc`, `spring-boot-starter-data-jpa`, `spring-boot-starter-validation`, H2, and Flyway. Later slices add dependencies only if they introduce a genuinely new capability (e.g., a PDF library in the Analytics slice).
+Dependencies are strictly added Just-In-Time (JIT) based on the YAGNI (You Aren't Gonna Need It) principle. There is no upfront "Global Infrastructure" phase that pre-loads unused dependencies. 
+
+- The initial Spring Boot skeleton will start with the bare minimum required to compile (e.g., `spring-boot-starter-webmvc`).
+- Baseline persistence dependencies (`spring-boot-starter-data-jpa`, `flyway-core`, H2) are only added when the first vertical slice requiring database access (e.g., Ticketing) is implemented.
+- Later slices add dependencies only if they introduce a genuinely new capability (e.g., adding a PDF library in the Analytics slice).
 
 ---
 
@@ -78,12 +82,14 @@ JPA's `@Table` and `@Column` annotations are used to explicitly set table and co
 
 | Element | Convention | Example |
 |---------|-----------|---------|
-| Base path | `/api` prefix on all endpoints | `/api/visitors` |
-| Resources | lowercase, plural, kebab-case | `/api/visitors`, `/api/ride-sessions` |
-| Identifiers | Path variable | `/api/visitors/{id}` |
-| Non-CRUD actions | Verb sub-resource | `/api/wristbands/{id}/scan`, `/api/emergency/override` |
-| Filtering | Query parameters | `/api/visitors?passType=FAMILY&status=ACTIVE` |
-| Pagination | Query parameters | `/api/rides?page=0&size=20&sort=name,asc` |
+| Base path | `/api/<context>` prefix on all endpoints | `/api/ticketing/visitors` |
+| Resources | lowercase, plural, kebab-case | `/api/ticketing/visitors`, `/api/rides/ride-sessions` |
+| Identifiers | Path variable | `/api/ticketing/visitors/{id}` |
+| Non-CRUD actions | Verb sub-resource | `/api/ticketing/wristbands/{id}/scan`, `/api/safety/emergency/override` |
+| Filtering | Query parameters | `/api/ticketing/visitors?passType=FAMILY&status=ACTIVE` |
+| Pagination | Query parameters | `/api/rides/rides?page=0&size=20&sort=name,asc` |
+
+Contexts are the bounded context names from `DESIGN.md` (e.g., `ticketing`, `park`, `billing`, `rides`, `food`, `merchandise`, `events`, `safety`).
 
 **HTTP methods and status codes:**
 
@@ -221,7 +227,7 @@ An `ErrorResponse` record in `common.dto` models the error body above. A nested 
 
 ## 8. Controller Layer Conventions
 
-- Controllers are `@RestController`-annotated classes with a `@RequestMapping("/api/<resource>")` base path.
+- Controllers are `@RestController`-annotated classes with a `@RequestMapping("/api/<context>/<resource>")` base path.
 - Each endpoint method is documented with a comment specifying the required security role (e.g., `// Requires: ROLE_TICKET_STAFF`). After the security slice, these become `@PreAuthorize` annotations.
 - Controllers delegate all work to services. The only logic in a controller is: accept the request, call the service, return the response.
 - Path variables use `@PathVariable`, request bodies use `@RequestBody @Valid`, query parameters use `@RequestParam` or a parameter object.
