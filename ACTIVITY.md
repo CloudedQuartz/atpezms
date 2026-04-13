@@ -37,3 +37,6 @@ Added the `ParkConfiguration` JPA entity mapped to the seeded `park_configuratio
 
 ## 2026-04-13 - Modelled SeasonalPeriod Reference Entity (Phase 1)
 Added the `SeasonalPeriod` JPA entity and `SeasonType` enum mapped to the seeded `seasonal_periods` table. This is the Park-owned reference data Ticketing reads during ticket issuance to classify a visit date as PEAK or OFF_PEAK, which drives the price-matrix lookup. Updated Phase 1 implementation notes to reflect that SeasonalPeriod is now modelled in code.
+
+## 2026-04-13 - Modelled PassType Configuration Entity (Phase 1)
+Added the `PassType` JPA entity and `PassTypeCode` enum mapped to the seeded `pass_types` table. Pass types are configuration data that define which categories of tickets can be sold (FR-VT1) and will be returned by the planned `GET /api/ticketing/pass-types` endpoint (see `PHASE_01_TICKETING_DESIGN.md`) once implemented. The entity includes basic checks to fail fast on invalid combinations (e.g., `MULTI_DAY` requires a positive multi-day count) and the database schema enforces this invariant via a CHECK constraint.
