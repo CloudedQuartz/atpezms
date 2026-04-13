@@ -1,7 +1,7 @@
 package com.atpezms.atpezms.park.service;
 
 import com.atpezms.atpezms.park.entity.ParkConfiguration;
-import com.atpezms.atpezms.park.entity.SeasonType;
+import com.atpezms.atpezms.common.entity.SeasonType;
 import com.atpezms.atpezms.park.entity.SeasonalPeriod;
 import com.atpezms.atpezms.park.repository.ParkConfigurationRepository;
 import com.atpezms.atpezms.park.repository.SeasonalPeriodRepository;

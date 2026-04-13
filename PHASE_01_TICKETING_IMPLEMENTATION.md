@@ -76,7 +76,8 @@ Current state in code (Phase 1, incremental):
 - `ticketing.service`: `PassTypeService`, `VisitorService`.
 - `ticketing.controller`: `PassTypeController`, `VisitorController`.
 - `ticketing.dto`: `PassTypeResponse`, `CreateVisitorRequest`, `VisitorResponse`.
-- `park.entity`: `Zone`, `ParkConfiguration`, `SeasonalPeriod`, `SeasonType`.
+- `park.entity`: `Zone`, `ParkConfiguration`, `SeasonalPeriod`.
+- `common.entity`: `BaseEntity`, `SeasonType` (shared enum).
 - `park.repository`: `ParkConfigurationRepository`, `SeasonalPeriodRepository`.
 - `park.service`: `ParkReferenceService` (provides active config and season type resolution for Ticketing).
 

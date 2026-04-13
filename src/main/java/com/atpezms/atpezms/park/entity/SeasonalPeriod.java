@@ -1,6 +1,7 @@
 package com.atpezms.atpezms.park.entity;
 
 import com.atpezms.atpezms.common.entity.BaseEntity;
+import com.atpezms.atpezms.common.entity.SeasonType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
