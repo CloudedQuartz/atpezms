@@ -262,7 +262,7 @@ Consolidation note: Safety and Telemetry are thin contexts. If scope pressure re
 - **Zone** -- A logical area of the park (Adventure Zone, Water Zone, Food Court Area, etc.).
   Phase 1 seeds minimal Zone reference data (`code`, `name`) to unblock Ticketing entitlements (zone coverage) without building Park CRUD yet; additional descriptive/operational fields (e.g., description/status) are introduced in Phase 2 (Park CRUD slice).
 - **ParkConfiguration** -- Park-wide settings: maximum daily visitor capacity, operating hours. One active configuration record at a time.
-- **SeasonalCalendar** -- Date ranges marked as peak/off-peak, weekday/weekend overrides, holiday periods. Referenced by Ticketing for pricing (FR-VT2) and by other contexts for scheduling.
+- **SeasonalPeriod** -- Date ranges marked as peak/off-peak. Referenced by Ticketing for pricing (FR-VT2) and by other contexts for scheduling.
 
 **Relationships:** Zone is referenced (by ID) from entities in Rides, Food, Merchandise, and Events. ParkConfiguration is read by Ticketing for capacity enforcement (FR-VT3).
 
@@ -292,7 +292,7 @@ Consolidation note: Safety and Telemetry are thin contexts. If scope pressure re
 
 **Core entities:**
 - **Visitor** -- A person visiting the park. Carries PII (name, age, height, contact information). Created at the ticket counter. Height is captured at registration for ride eligibility checks (SF-2). Persists across visits (a returning visitor is the same record).
-- **Wristband** -- An RFID wristband. Has a unique RFID tag and a lifecycle status (active, checked-out, deactivated). One active wristband per visitor at a time.
+- **Wristband** -- An RFID wristband. Has a unique RFID tag and a lifecycle status (in-stock, active, deactivated). One active wristband per visitor at a time.
 - **Ticket** -- The purchase record. Links a Visitor to a PassType with a pricing snapshot (the price paid at time of purchase, which may differ from the current PassType price), validity window, and payment reference. A multi-day Ticket spans multiple Visits.
 - **PassType** -- A reference/configuration entity defining pass categories (Single-day, Multi-day, Ride-specific, Family, Fast-track) and their base pricing rules.
 - **Visit** -- One entry-to-exit session in the park. Created when a visitor enters (wristband activated). Ended when the visitor completes checkout (Section 5.4, Billing) and exits. Bills, transactions, and scan events all attach to a Visit, not directly to a Wristband or Visitor.
@@ -318,7 +318,7 @@ Consolidation note: Safety and Telemetry are thin contexts. If scope pressure re
 - Fast-track passes: grant queue priority via a priority AccessEntitlement. The exact priority mechanism is defined in the Rides slice.
 - Family passes: a pricing category for group registration. Each family member gets their own Visitor record, Wristband, and individual billing. The "family" benefit is the discounted group rate at purchase time.
 
-**FR/NFR coverage:** FR-VT1 (pass types), FR-VT2 (pricing via PassType + SeasonalCalendar), FR-VT3 (capacity enforcement), FR-VT4 (RFID association), CO-1 (RFID as sole identifier), PR-1 (resolution performance).
+**FR/NFR coverage:** FR-VT1 (pass types), FR-VT2 (pricing via PassType + SeasonalPeriod), FR-VT3 (capacity enforcement), FR-VT4 (RFID association), CO-1 (RFID as sole identifier), PR-1 (resolution performance).
 
 ---
 
@@ -605,7 +605,7 @@ Each slice follows the Level 2 Mini-Waterfall from `DESIGN_RULES.md`: detailed d
 | Phase | Slice | Key Deliverables | Depends On |
 |-------|-------|-----------------|------------|
 | 1 | **Ticketing** | Visitor, Wristband, Visit, Ticket, PassType, AccessEntitlement. Registration, wristband issuance, RFID resolution, capacity enforcement, exit orchestration. | None (Foundational) |
-| 2 | **Park** | Zone, ParkConfiguration, SeasonalCalendar. Reference data CRUD. | Phase 1 |
+| 2 | **Park** | Zone, ParkConfiguration, SeasonalPeriod. Reference data CRUD. | Phase 1 |
 | 3 | **Identity + Security Skeleton** | User, Role. Staff CRUD. JWT authentication filter and security configuration. All subsequent slices add role restrictions as they go. | Phase 1 |
 | 4 | **Billing** | Transaction, Bill. Record-transaction API, bill aggregation, payment processing (via mocked gateway). | Phase 1 (visits) |
 | 5 | **Telemetry** | ScanEvent. Logging service, duplicate detection queries. | Phase 2 (zones) |
