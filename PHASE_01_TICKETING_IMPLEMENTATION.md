@@ -71,8 +71,8 @@ Because Phase 1 seeds Park reference tables and needs read access, we will intro
 
 Current state in code (Phase 1, incremental):
 
-- `ticketing.entity`: `PassType` + `PassTypeCode`, `Visitor` (AES-GCM encrypted PII), `AgeGroup`, `DayType`, `PassTypePrice`, `Wristband` + `WristbandStatus`, `Ticket`.
-- `ticketing.repository`: `PassTypeRepository`, `VisitorRepository`, `PassTypePriceRepository`, `WristbandRepository`, `TicketRepository`.
+- `ticketing.entity`: `PassType` + `PassTypeCode`, `Visitor` (AES-GCM encrypted PII), `AgeGroup`, `DayType`, `PassTypePrice`, `Wristband` + `WristbandStatus`, `Ticket`, `Visit` + `VisitStatus`.
+- `ticketing.repository`: `PassTypeRepository`, `VisitorRepository`, `PassTypePriceRepository`, `WristbandRepository`, `TicketRepository`, `VisitRepository`.
 - `ticketing.service`: `PassTypeService`, `VisitorService`.
 - `ticketing.controller`: `PassTypeController`, `VisitorController`.
 - `ticketing.dto`: `PassTypeResponse`, `CreateVisitorRequest`, `VisitorResponse`.

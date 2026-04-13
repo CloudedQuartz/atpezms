@@ -44,6 +44,9 @@ Added the `PassType` JPA entity and `PassTypeCode` enum mapped to the seeded `pa
 ## 2026-04-13 - Implemented AES-GCM PII Encryption Converter (Phase 1)
 Added `StringEncryptionConverter` in `common.converter` to satisfy SE-1 (encrypt visitor PII at rest). The converter implements JPA's `AttributeConverter<String, String>` and is wired as a Spring `@Component` so Hibernate resolves it from the Spring context, enabling `@Value` injection of the AES-256 key. Stored format is `Base64(IV || ciphertext+tag)` with a fresh 12-byte random IV per call, making ciphertexts non-deterministic and tamper-detectable via the GCM authentication tag. Global PII encryption conventions codified in `IMPLEMENTATION.md` §13.
 
+## 2026-04-13 - Modelled Visit Entity and RFID Resolution Query (Phase 1)
+Implemented the `VisitStatus` enum and `Visit` entity to represent an active session in the park. Added `VisitRepository` with the `findActiveByRfidTag` query. This query implements the PR-1 hot path (resolving an RFID scan to a visitor and their ticket entitlements) using an index-only lookup against the `idx_visits_wristband_status` index and `JOIN FETCH` to eagerly hydrate the associated `Visitor` and `Ticket` entities in a single database round-trip.
+
 ## 2026-04-13 - Modelled Ticket Entity (Phase 1)
 Added the `Ticket` entity to represent an immutable purchase record. Configured JPA `@ManyToOne` relationships to `Visitor` and `PassType` since these reside within the same Ticketing context (conforming to `DESIGN.md` §6.2 which allows intra-context relationships but forbids cross-context ones). Storing `pricePaidCents` and `currency` implements the price snapshot pattern so historical records are not affected by future configuration changes.
 
