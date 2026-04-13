@@ -44,6 +44,9 @@ Added the `PassType` JPA entity and `PassTypeCode` enum mapped to the seeded `pa
 ## 2026-04-13 - Implemented AES-GCM PII Encryption Converter (Phase 1)
 Added `StringEncryptionConverter` in `common.converter` to satisfy SE-1 (encrypt visitor PII at rest). The converter implements JPA's `AttributeConverter<String, String>` and is wired as a Spring `@Component` so Hibernate resolves it from the Spring context, enabling `@Value` injection of the AES-256 key. Stored format is `Base64(IV || ciphertext+tag)` with a fresh 12-byte random IV per call, making ciphertexts non-deterministic and tamper-detectable via the GCM authentication tag. Global PII encryption conventions codified in `IMPLEMENTATION.md` §13.
 
+## 2026-04-13 - Added Park Reference Service for Ticketing JIT (Phase 1)
+Implemented `ParkConfigurationRepository`, `SeasonalPeriodRepository`, and `ParkReferenceService` in the `park` context. This provides just-in-time read access for the Ticketing context to resolve the active park configuration (for daily capacity limits) and the `SeasonType` for a given date (for pricing). Consistent with cross-context rules, Ticketing will call this service rather than accessing Park repositories directly.
+
 ## 2026-04-13 - Implemented Visitor Registration Endpoint (Phase 1)
 Implemented `POST /api/ticketing/visitors` end-to-end: `VisitorRepository`, `VisitorService`, `CreateVisitorRequest` (Bean Validation DTO), `VisitorResponse`, and `VisitorController` (returns 201). Tests written at two levels: `VisitorControllerTest` uses `@WebMvcTest` + `@MockitoBean` to test validation and HTTP mapping in isolation; `VisitorIntegrationTest` uses `@SpringBootTest` + `@Transactional` to verify the full registration flow including PII encryption round-trip against the in-memory H2 database.
 

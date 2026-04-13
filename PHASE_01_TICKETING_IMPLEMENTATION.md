@@ -76,7 +76,9 @@ Current state in code (Phase 1, incremental):
 - `ticketing.service`: `PassTypeService`, `VisitorService`.
 - `ticketing.controller`: `PassTypeController`, `VisitorController`.
 - `ticketing.dto`: `PassTypeResponse`, `CreateVisitorRequest`, `VisitorResponse`.
-- Only `park.entity` exists so far; `park.repository`/`park.service` will be added just-in-time when Ticketing needs real DB reads.
+- `park.entity`: `Zone`, `ParkConfiguration`, `SeasonalPeriod`, `SeasonType`.
+- `park.repository`: `ParkConfigurationRepository`, `SeasonalPeriodRepository`.
+- `park.service`: `ParkReferenceService` (provides active config and season type resolution for Ticketing).
 
 Park entities modelled so far:
 
