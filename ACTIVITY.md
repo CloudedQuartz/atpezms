@@ -44,6 +44,9 @@ Added the `PassType` JPA entity and `PassTypeCode` enum mapped to the seeded `pa
 ## 2026-04-13 - Implemented AES-GCM PII Encryption Converter (Phase 1)
 Added `StringEncryptionConverter` in `common.converter` to satisfy SE-1 (encrypt visitor PII at rest). The converter implements JPA's `AttributeConverter<String, String>` and is wired as a Spring `@Component` so Hibernate resolves it from the Spring context, enabling `@Value` injection of the AES-256 key. Stored format is `Base64(IV || ciphertext+tag)` with a fresh 12-byte random IV per call, making ciphertexts non-deterministic and tamper-detectable via the GCM authentication tag. Global PII encryption conventions codified in `IMPLEMENTATION.md` §13.
 
+## 2026-04-13 - Modelled ParkDayCapacity and Atomic Increment Repository (Phase 1)
+Implemented the `ParkDayCapacity` entity and `ParkDayCapacityRepository.incrementIfCapacityAvailable` guarded update query. This is the concurrency-safe mechanism for FR-VT3 capacity enforcement: the DB atomically increments `issued_count` only while `issued_count < max_capacity`, so concurrent ticketing counters cannot oversell the same day. Added a focused integration test and documented the first-level cache caveat for bulk JPQL updates (clear persistence context before re-read).
+
 ## 2026-04-13 - Modelled AccessEntitlement for Ticket Grants (Phase 1)
 Implemented `EntitlementType` and `AccessEntitlement` to represent what a ticket grants in a flexible, row-based model (`ZONE`, `RIDE`, `QUEUE_PRIORITY`). Added type-aware validation rules so each entitlement type requires only its relevant field (`zoneId`, `rideId`, or `priorityLevel`) and rejects invalid combinations. Kept `zoneId` and `rideId` as scalar IDs (not JPA relationships) to enforce the cross-context boundary rule from `DESIGN.md` §6.2.
 

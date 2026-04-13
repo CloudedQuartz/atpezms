@@ -215,6 +215,22 @@ Implemented in code as `com.atpezms.atpezms.common.dto.ErrorResponse`.
 - Repositories belong to their context's `repository` package.
 - Analytics repositories (read-only, cross-context) belong to the `analytics.repository` package and must only contain read operations.
 
+### 6.1 Bulk Updates And Auditing
+
+JPQL bulk updates (`UPDATE ...`) bypass the persistence context and entity lifecycle listeners.
+
+- They do not update already-managed entities in the first-level cache (callers must `EntityManager.clear()` or `refresh(...)` before re-reading).
+- They bypass auditing (`@LastModifiedDate`) and validation callbacks (`@PreUpdate`). If a bulk update changes an entity, it MUST explicitly set `updatedAt` in the update statement (e.g., `SET updatedAt = CURRENT_TIMESTAMP` or `SET updatedAt = :now`) to keep the audit trail consistent.
+
+### 6.2 Transaction Annotation Placement (Guardrails)
+
+Transaction boundaries belong in the service layer (Section 7). Repositories normally do not declare `@Transactional`.
+
+Exception (guardrail only): a repository write method may declare `@Transactional(propagation = Propagation.MANDATORY)` to enforce that it is called from within an existing service-layer transaction.
+
+- This is not a transaction boundary; it prevents accidental out-of-transaction writes that would violate business rules (e.g., reserving capacity outside the broader issuance transaction).
+- When used, the repository method MUST have an explicit test that calling it without an existing transaction fails.
+
 ---
 
 ## 7. Service Layer Conventions
