@@ -28,3 +28,6 @@ Introduced profile-specific datasource configuration for local development and t
 
 ## 2026-04-13 - Introduced BaseEntity and JPA Auditing
 Added a shared `BaseEntity` `@MappedSuperclass` with `id`, `createdAt`, and `updatedAt` so every entity has consistent traceability metadata. Enabled Spring Data JPA auditing via `JpaAuditConfig` so timestamps are populated automatically on insert/update, and explicitly configured `modifyOnCreate=true` plus an `Instant`-based `DateTimeProvider` so `updatedAt` is non-null on initial insert and matches the entity field types.
+
+## 2026-04-13 - Modelled Zone Reference Entity (Phase 1)
+Added the minimal `Zone` JPA entity (`code`, `name`) mapped to the seeded `zones` table so Ticketing can reference zone identifiers for entitlement modelling without waiting for Phase 2 Park CRUD endpoints.

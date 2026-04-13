@@ -259,7 +259,8 @@ Consolidation note: Safety and Telemetry are thin contexts. If scope pressure re
 **Why this context exists:** Zones are referenced by Ticketing (pass coverage), Rides (ride location), Food (outlet location), Merchandise (store location), and Events (venue location). If any single domain context owned Zone, it would create circular dependencies. Park is the shared foundation that all others depend on.
 
 **Core entities:**
-- **Zone** -- A logical area of the park (Adventure Zone, Water Zone, Food Court Area, etc.). Has a name, description, and operational status.
+- **Zone** -- A logical area of the park (Adventure Zone, Water Zone, Food Court Area, etc.).
+  Phase 1 seeds minimal Zone reference data (`code`, `name`) to unblock Ticketing entitlements (zone coverage) without building Park CRUD yet; additional descriptive/operational fields (e.g., description/status) are introduced in Phase 2 (Park CRUD slice).
 - **ParkConfiguration** -- Park-wide settings: maximum daily visitor capacity, operating hours. One active configuration record at a time.
 - **SeasonalCalendar** -- Date ranges marked as peak/off-peak, weekday/weekend overrides, holiday periods. Referenced by Ticketing for pricing (FR-VT2) and by other contexts for scheduling.
 
