@@ -90,3 +90,6 @@ Implemented `POST /api/ticketing/visits` end-to-end to sell a ticket, associate/
 
 ## 2026-04-14 - Implemented RFID Resolution Debug Endpoint (Phase 1)
 Implemented `GET /api/ticketing/rfid/{rfidTag}/active-visit` to resolve an RFID tag to the currently ACTIVE visit and return the scan-hot-path attributes needed by downstream contexts. Added controller and integration coverage for success, 404 (`ACTIVE_VISIT_NOT_FOUND`), and invalid path-variable validation, and extended global exception handling to map `ConstraintViolationException` to the standard 400 `VALIDATION_FAILED` contract.
+
+## 2026-04-14 - Synced Phase 1 Implementation Notes With Park/Ticketing Reality
+Updated the Phase 1 implementation notes to reflect already-implemented Park reference access (`ParkReferenceService`) and the shared `SeasonType` location in `common.entity`, removing stale "planned" wording.

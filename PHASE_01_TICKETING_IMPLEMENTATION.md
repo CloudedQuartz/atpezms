@@ -90,11 +90,11 @@ Park entities modelled so far:
 
 Next (just-in-time):
 
-- Introduce `park.repository` / `park.service` once Ticketing implements the pricing/capacity read queries (active park configuration + seasonal period lookup).
+- (Done) Introduced `park.repository` / `park.service` for Ticketing's pricing/capacity reads (active park configuration + seasonal period lookup).
 
 Implementation note:
 
-- `SeasonType` currently lives in `park.entity` because SeasonalPeriod is Park-owned. When we model Ticketing's price-matrix (`pass_type_prices`), we will either reuse this enum as a shared value type or move it to `common` if it becomes a cross-context primitive.
+- `SeasonType` lives in `common.entity` as a shared enum primitive used by both Park (`SeasonalPeriod`) and Ticketing (`PassTypePrice`).
 
 Park controllers (CRUD) are deferred to Phase 2.
 
