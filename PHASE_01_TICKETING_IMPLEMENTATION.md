@@ -73,9 +73,9 @@ Current state in code (Phase 1, incremental):
 
 - `ticketing.entity`: `PassType` + `PassTypeCode`, `Visitor` (AES-GCM encrypted PII), `AgeGroup`, `DayType`, `PassTypePrice`, `Wristband` + `WristbandStatus`, `Ticket`, `Visit` + `VisitStatus`, `AccessEntitlement` + `EntitlementType`, `ParkDayCapacity`.
 - `ticketing.repository`: `PassTypeRepository`, `VisitorRepository`, `PassTypePriceRepository`, `WristbandRepository`, `TicketRepository`, `VisitRepository`, `AccessEntitlementRepository`, `ParkDayCapacityRepository`.
-- `ticketing.service`: `PassTypeService`, `VisitorService`.
-- `ticketing.controller`: `PassTypeController`, `VisitorController`.
-- `ticketing.dto`: `PassTypeResponse`, `CreateVisitorRequest`, `VisitorResponse`.
+- `ticketing.service`: `PassTypeService`, `VisitorService`, `VisitService`.
+- `ticketing.controller`: `PassTypeController`, `VisitorController`, `VisitController`.
+- `ticketing.dto`: `PassTypeResponse`, `CreateVisitorRequest`, `VisitorResponse`, `IssueVisitRequest`, `IssueVisitResponse`.
 - `park.entity`: `Zone`, `ParkConfiguration`, `SeasonalPeriod`.
 - `common.entity`: `BaseEntity`, `SeasonType` (shared enum).
 - `park.repository`: `ParkConfigurationRepository`, `SeasonalPeriodRepository`.
@@ -177,7 +177,7 @@ Primary service operations:
 - `VisitorService.createVisitor(...)`
 - `PassTypeService.listActivePassTypes()`
 - `VisitService.issueTicketAndStartVisit(...)` (the Phase 1 core use case)
-- `RfidResolutionService.resolveActiveVisitByRfidTag(...)`
+- (Planned, not implemented yet) `RfidResolutionService.resolveActiveVisitByRfidTag(...)`
 
 Transaction rules:
 
@@ -247,13 +247,12 @@ Important:
 
 Per `IMPLEMENTATION.md` we write:
 
-- Integration tests (`@SpringBootTest`, `@ActiveProfiles("test")`) for `issueTicketAndStartVisit`:
-  - creates visitor + issues ticket + starts visit
-  - denies when capacity exceeded
-  - denies when wristband already active
+- Integration tests (`@SpringBootTest`, `@AutoConfigureMockMvc`, `@ActiveProfiles("test")`) for the issuance endpoint:
+- `VisitIntegrationTest`: creates visitor + issues ticket + starts visit + activates wristband.
+- Service tests (`@SpringBootTest`, `@Transactional`) for `VisitService` domain rules:
+- `VisitServiceTest`: defaults visit date to today (UTC), rejects past visit dates, rejects if visitor already has an active visit, rejects if wristband already active.
 - Controller tests (`@WebMvcTest`, `@ActiveProfiles("test")`) to verify validation and error mapping:
-  - 400 on invalid DTOs
-  - correct status codes for known business exceptions
+- `VisitControllerTest`: 400 on invalid DTOs; correct status codes for known business exceptions.
 
 ---
 

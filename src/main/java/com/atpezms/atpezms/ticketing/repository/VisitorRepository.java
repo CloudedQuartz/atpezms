@@ -1,7 +1,12 @@
 package com.atpezms.atpezms.ticketing.repository;
 
 import com.atpezms.atpezms.ticketing.entity.Visitor;
+import java.util.Optional;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /**
  * Spring Data repository for {@link Visitor} persistence.
@@ -26,4 +31,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
  * in {@code IMPLEMENTATION.md} §13.8.
  */
 public interface VisitorRepository extends JpaRepository<Visitor, Long> {
+
+	/**
+	 * Loads a Visitor row with a pessimistic write lock.
+	 *
+	 * <p>Used by the visit issuance flow to prevent a race where two concurrent
+	 * requests start two ACTIVE visits for the same visitor. The lock forces those
+	 * requests to serialize at the database row level.
+	 */
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("SELECT v FROM Visitor v WHERE v.id = :id")
+	Optional<Visitor> findByIdForUpdate(@Param("id") Long id);
 }

@@ -84,3 +84,6 @@ Implemented the `GET /api/ticketing/pass-types` endpoint returning active pass t
 
 ## 2026-04-13 - Clarified Phase 1.1 Visit Issuance Rules (Docs)
 Documented the explicit Phase 1.1 issuance decisions (defaults, invariants, and edge cases) as a pre-implementation checklist so behavior is explainable and testable before `POST /api/ticketing/visits` is implemented.
+
+## 2026-04-14 - Implemented Visit Issuance Endpoint (Phase 1)
+Implemented `POST /api/ticketing/visits` end-to-end to sell a ticket, associate/auto-create an RFID wristband, reserve daily capacity, and start an ACTIVE visit atomically. Added pessimistic locking repository methods to serialize concurrent issuance attempts and hardened the flow against unique-constraint races when creating missing wristbands or capacity rows. Added controller slice tests for validation and exception-to-HTTP mapping, plus an integration test that verifies the full persistence flow against Flyway-seeded H2.

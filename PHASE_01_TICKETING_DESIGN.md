@@ -475,11 +475,13 @@ Failure cases (examples):
 - 404 `VISITOR_NOT_FOUND`
 - 404 `PASS_TYPE_NOT_FOUND`
 - 409 `WRISTBAND_ALREADY_ACTIVE`
+- 409 `WRISTBAND_RFID_TAG_CONFLICT` (two counters attempted to auto-register the same new RFID concurrently; client should retry)
 - 409 `VISITOR_ALREADY_IN_PARK`
 - 422 `CAPACITY_EXCEEDED` (sold out)
 - 422 `PASS_TYPE_INACTIVE`
 - 422 `PASS_TYPE_NOT_SUPPORTED_YET` (e.g. `MULTI_DAY` in Phase 1.1)
 - 422 `VISIT_DATE_IN_PAST`
+- 422 `PRICE_NOT_CONFIGURED` (no seeded price row matches the pricing inputs)
 
 Phase 1.1 enforcement:
 

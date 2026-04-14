@@ -246,6 +246,20 @@ Exception (guardrail only): a repository write method may declare `@Transactiona
 - Integrity-required writes (Billing ledger records for CO-2 operations, audit trail records for high-impact admin actions) must be part of the primary transaction and must not be swallowed. Do not use `REQUIRES_NEW` for audit logging, because it can create audit records for operations that later roll back.
 - Services accept and return DTOs or simple values to/from controllers. They work with entities internally.
 
+### 7.1 Time Source (Clock)
+
+When domain rules depend on "now" (dates/times), services SHOULD depend on an injectable `java.time.Clock` rather than calling `Instant.now()` / `LocalDate.now()` directly.
+
+Rationale:
+
+- Makes time-based rules deterministic in tests (no sleeps, no flaky midnight edge cases).
+- Centralizes the application's time zone decision (we default to UTC in Phase 1 Ticketing).
+
+Implementation pattern:
+
+- Provide a single Spring bean: {@code Clock.systemUTC()} (see {@code common.config.ClockConfig}).
+- Use `Instant.now(clock)` and `LocalDate.now(clock.withZone(ZoneOffset.UTC))` inside services.
+
 ---
 
 ## 8. Controller Layer Conventions
