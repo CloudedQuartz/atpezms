@@ -32,8 +32,8 @@ class PassTypePriceRepositoryTest {
 
     @Test
     void shouldFindPriceForValidCombination() {
-        // V001 seeds PassType(code=SINGLE_DAY) with ID 1
-        // And seeds a price: SINGLE_DAY + CHILD + WEEKDAY + OFF_PEAK = 150000 LKR
+        // V001 seeds all pass types; look up by code, not by numeric ID.
+        // Verifies the price: SINGLE_DAY + CHILD + WEEKDAY + OFF_PEAK = 150000 LKR
         PassType passType = passTypeRepository.findByCode(com.atpezms.atpezms.ticketing.entity.PassTypeCode.SINGLE_DAY).orElseThrow();
 
         Optional<PassTypePrice> priceOpt = passTypePriceRepository

@@ -129,8 +129,9 @@ CREATE TABLE visitors (
 --   ACTIVE     -- currently assigned to an active visit
 --   DEACTIVATED -- retired (lost/stolen/end-of-life); must never be reused
 --
--- The index on rfid_tag makes the resolution lookup (RFID tag -> active visit)
--- fast. This is the PR-1 hot path: scan to decision must be < 1 second.
+-- The UNIQUE constraint on rfid_tag implicitly creates a unique index, which
+-- makes the resolution lookup (RFID tag -> active visit) fast without a
+-- separate CREATE INDEX. This is the PR-1 hot path: scan to decision < 1s.
 -- -----------------------------------------------------------------------------
 CREATE TABLE wristbands (
     id         BIGINT      NOT NULL AUTO_INCREMENT,

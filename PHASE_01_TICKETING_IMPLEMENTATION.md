@@ -126,12 +126,12 @@ We implement database constraints that enforce invariants early:
 
 Implementation note:
 
-- We enforce the `pass_types.multi_day_count` invariant at the database level (CHECK constraint) so invalid combinations cannot exist even if application validation is bypassed.
+- We enforce the `pass_types.multi_day_count` invariant at the database level (CHECK constraint) so invalid combinations cannot exist even if application validation is bypassed. This CHECK was introduced in V002 as a follow-up migration after V001 established the initial schema and seed data.
 
 Performance index for hot path:
 
-- Index on `wristbands.rfid_tag`
-- Index on `visits.wristband_id` and `visits.status` (active visit lookup)
+- `wristbands.rfid_tag` — covered by `uk_wristbands_rfid_tag UNIQUE` (unique constraints are index-backed; no separate `CREATE INDEX` needed or added)
+- `visits.wristband_id` and `visits.status` — explicit `idx_visits_wristband_status` composite index for the active visit lookup
 
 ---
 
