@@ -19,3 +19,6 @@ Implemented the shared `ErrorResponse` DTO and a centralized `@RestControllerAdv
 
 ## 2026-04-13 - Required Same-Session Documentation Sync Workflow
 Added an explicit rule that non-trivial changes must re-read relevant project docs before coding and update the affected documentation in the same work session. This formalizes anti-drift behavior so design intent and implementation stay aligned commit by commit.
+
+## 2026-04-13 - Added Validation and Persistence Starters Baseline
+Added Spring starters for Bean Validation, JPA, and Flyway plus the H2 runtime dependency to establish the baseline dependency set for request validation and database-backed slices. This enables DTO constraint enforcement at the API boundary and prepares the project for migration-owned schema management in upcoming commits.
