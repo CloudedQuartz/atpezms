@@ -22,7 +22,7 @@ Phase 1.1 first introduces the web layer and request validation:
 Then, when we begin implementing persistence and migrations, we add:
 
 - `spring-boot-starter-data-jpa` (repositories + transactions)
-- `flyway-core` (schema migrations)
+- `spring-boot-starter-flyway` (schema migrations)
 - `com.h2database:h2` (embedded database)
 
 Rationale:

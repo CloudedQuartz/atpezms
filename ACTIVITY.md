@@ -22,3 +22,6 @@ Added an explicit rule that non-trivial changes must re-read relevant project do
 
 ## 2026-04-13 - Added Validation and Persistence Starters Baseline
 Added Spring starters for Bean Validation, JPA, and Flyway plus the H2 runtime dependency to establish the baseline dependency set for request validation and database-backed slices. This enables DTO constraint enforcement at the API boundary and prepares the project for migration-owned schema management in upcoming commits.
+
+## 2026-04-13 - Added Persistence Profiles and Flyway Baseline Schema
+Introduced profile-specific datasource configuration for local development and tests, enforced Flyway migration ownership with Hibernate `ddl-auto=validate`, and added the initial V001 schema/seed migration that bootstraps Park reference data plus Ticketing tables for pricing and capacity enforcement.

@@ -42,7 +42,7 @@ Sub-packages are created only when the context has classes of that type. An empt
 Dependencies are strictly added Just-In-Time (JIT) based on the YAGNI (You Aren't Gonna Need It) principle. There is no upfront "Global Infrastructure" phase that pre-loads unused dependencies. 
 
 - The initial Spring Boot skeleton will start with the bare minimum required to compile (e.g., `spring-boot-starter-webmvc`).
-- Baseline persistence dependencies (`spring-boot-starter-data-jpa`, `flyway-core`, H2) are only added when the first vertical slice requiring database access (e.g., Ticketing) is implemented.
+- Baseline persistence dependencies (`spring-boot-starter-data-jpa`, `spring-boot-starter-flyway`, H2) are only added when the first vertical slice requiring database access (e.g., Ticketing) is implemented.
 - Later slices add dependencies only if they introduce a genuinely new capability (e.g., adding a PDF library in the Analytics slice).
 
 ---
