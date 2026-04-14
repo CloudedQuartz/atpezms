@@ -116,7 +116,9 @@ All domain entities extend a common mapped superclass that provides:
 
 These fields are populated by JPA auditing (`@EntityListeners(AuditingEntityListener.class)` with `@CreatedDate` / `@LastModifiedDate`). This requires a `JpaAuditConfig` class annotated with `@EnableJpaAuditing` in the `common.config` package.
 
-Entities that require accountability (per `DESIGN.md` Section 3.8) additionally carry `createdBy` and `updatedBy` (type `String`), populated via `@CreatedBy` / `@LastModifiedBy`. These require an `AuditorAware` bean that returns the current authenticated user's identifier. Before the security slice, this returns a placeholder value (e.g., `"system"`). After security, it reads from the JWT.
+Entities that require accountability (per `DESIGN.md` Section 3.8) additionally carry `createdBy` and `updatedBy` (type `String`), populated via `@CreatedBy` / `@LastModifiedBy`.
+
+Current state: date auditing (`createdAt`/`updatedAt`) is implemented; actor auditing (`createdBy`/`updatedBy` + `AuditorAware`) is planned for the Security slice.
 
 ---
 

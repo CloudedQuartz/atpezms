@@ -25,3 +25,6 @@ Added Spring starters for Bean Validation, JPA, and Flyway plus the H2 runtime d
 
 ## 2026-04-13 - Added Persistence Profiles and Flyway Baseline Schema
 Introduced profile-specific datasource configuration for local development and tests, enforced Flyway migration ownership with Hibernate `ddl-auto=validate`, and added the initial V001 schema/seed migration that bootstraps Park reference data plus Ticketing tables for pricing and capacity enforcement.
+
+## 2026-04-13 - Introduced BaseEntity and JPA Auditing
+Added a shared `BaseEntity` `@MappedSuperclass` with `id`, `createdAt`, and `updatedAt` so every entity has consistent traceability metadata. Enabled Spring Data JPA auditing via `JpaAuditConfig` so timestamps are populated automatically on insert/update, and explicitly configured `modifyOnCreate=true` plus an `Instant`-based `DateTimeProvider` so `updatedAt` is non-null on initial insert and matches the entity field types.
