@@ -87,3 +87,6 @@ Documented the explicit Phase 1.1 issuance decisions (defaults, invariants, and 
 
 ## 2026-04-14 - Implemented Visit Issuance Endpoint (Phase 1)
 Implemented `POST /api/ticketing/visits` end-to-end to sell a ticket, associate/auto-create an RFID wristband, reserve daily capacity, and start an ACTIVE visit atomically. Added pessimistic locking repository methods to serialize concurrent issuance attempts and hardened the flow against unique-constraint races when creating missing wristbands or capacity rows. Added controller slice tests for validation and exception-to-HTTP mapping, plus an integration test that verifies the full persistence flow against Flyway-seeded H2.
+
+## 2026-04-14 - Implemented RFID Resolution Debug Endpoint (Phase 1)
+Implemented `GET /api/ticketing/rfid/{rfidTag}/active-visit` to resolve an RFID tag to the currently ACTIVE visit and return the scan-hot-path attributes needed by downstream contexts. Added controller and integration coverage for success, 404 (`ACTIVE_VISIT_NOT_FOUND`), and invalid path-variable validation, and extended global exception handling to map `ConstraintViolationException` to the standard 400 `VALIDATION_FAILED` contract.

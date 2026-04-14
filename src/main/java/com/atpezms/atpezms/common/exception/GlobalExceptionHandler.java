@@ -1,6 +1,7 @@
 package com.atpezms.atpezms.common.exception;
 
 import com.atpezms.atpezms.common.dto.ErrorResponse;
+import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
 import java.util.List;
 import org.slf4j.Logger;
@@ -40,6 +41,34 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
 		var fieldErrors = ex.getBindingResult().getFieldErrors().stream()
 				.map(this::toFieldError)
+				.toList();
+
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+				.body(new ErrorResponse(
+						HttpStatus.BAD_REQUEST.value(),
+						"VALIDATION_FAILED",
+						"Request validation failed",
+						Instant.now(),
+						fieldErrors
+				));
+	}
+
+	@ExceptionHandler(ConstraintViolationException.class)
+	public ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException ex) {
+		// Method-parameter validation (e.g. @PathVariable/@RequestParam) raises ConstraintViolationException.
+		// We map it to the same 400 structure as body validation so clients don't need two parsers.
+		var fieldErrors = ex.getConstraintViolations().stream()
+				.map(v -> {
+					String field = v.getPropertyPath() != null
+							? v.getPropertyPath().toString()
+							: "parameter";
+					// Typical path example: "getActiveVisitByRfidTag.rfidTag". We only expose the parameter name.
+					int idx = field.lastIndexOf('.');
+					if (idx >= 0 && idx < field.length() - 1) {
+						field = field.substring(idx + 1);
+					}
+					return new ErrorResponse.FieldError(field, v.getMessage());
+				})
 				.toList();
 
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST)

@@ -508,6 +508,48 @@ We may optionally expose this as a debug endpoint:
 
 This endpoint is not intended for production device flows, but is useful for integration testing early.
 
+#### 7.4.1 Debug Endpoint Contract: Get Active Visit By RFID
+
+`GET /api/ticketing/rfid/{rfidTag}/active-visit`
+
+Purpose:
+
+- Resolve a raw RFID tag into the currently ACTIVE Visit and the minimum set of attributes other contexts need on the scan hot path (PR-1).
+- Provide an HTTP-accessible way to verify RFID resolution during early integration testing (before Rides/Food/Merchandise contexts exist).
+
+Path parameters:
+
+- `rfidTag` (required; non-blank; max length 64)
+
+Success (200) response fields:
+
+- `visitId`
+- `visitorId`
+- `wristbandId`
+- `ticketId`
+- `passTypeId`
+- `passTypeCode`
+- `validFrom`
+- `validTo`
+- `ageYears` (computed at the visit start date, anchored to UTC)
+- `heightCm`
+- `entitlements` (list)
+
+Entitlement item fields:
+
+- `entitlementType` (`ZONE`, `RIDE`, `QUEUE_PRIORITY`)
+- `zoneId` (nullable)
+- `rideId` (nullable)
+- `priorityLevel` (nullable)
+
+Phase 1.1 note:
+
+- Phase 1.1 does not create `access_entitlements` rows, so `entitlements` will be an empty list until Phase 1.3 implements entitlement creation.
+
+Failure cases:
+
+- 404 `ACTIVE_VISIT_NOT_FOUND` (RFID tag exists or not: no ACTIVE visit is currently resolvable for this tag)
+
 ---
 
 ## 8. Cross-Context Interactions

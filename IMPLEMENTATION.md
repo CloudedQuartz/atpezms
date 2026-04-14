@@ -270,6 +270,25 @@ Implementation pattern:
 - Path variables use `@PathVariable`, request bodies use `@RequestBody @Valid`, query parameters use `@RequestParam` or a parameter object.
 - Controllers return `ResponseEntity<T>` for explicit status code control (e.g., `ResponseEntity.status(201).body(response)`).
 
+### 8.1 Validating Path Variables (Bean Validation)
+
+Bean Validation is not limited to request bodies. We also validate path parameters and query parameters.
+
+Rule:
+
+- Controllers that apply validation annotations to `@PathVariable` or `@RequestParam` values MUST annotate the controller class with `@Validated`.
+
+Why this exists:
+
+- Without `@Validated`, Spring MVC does not trigger method-parameter validation, so annotations like `@NotBlank` on a path variable will silently do nothing.
+- This leads to undocumented behavior where invalid path variables either:
+  - fall through to the service (and fail later with confusing error codes), or
+  - cause a different exception type that bypasses our expected error mapping.
+
+Status mapping:
+
+- When method-parameter validation fails, Spring throws `ConstraintViolationException`. Our global exception handler maps this to 400 with code `VALIDATION_FAILED`.
+
 ---
 
 ## 9. Database and Migration

@@ -174,10 +174,10 @@ Testing (complete):
 
 Primary service operations:
 
-- `VisitorService.createVisitor(...)`
-- `PassTypeService.listActivePassTypes()`
-- `VisitService.issueTicketAndStartVisit(...)` (the Phase 1 core use case)
-- (Planned, not implemented yet) `RfidResolutionService.resolveActiveVisitByRfidTag(...)`
+ - `VisitorService.createVisitor(...)`
+ - `PassTypeService.listActivePassTypes()`
+ - `VisitService.issueTicketAndStartVisit(...)` (the Phase 1 core use case)
+ - `RfidResolutionService.resolveActiveVisitByRfidTag(...)` (Phase 1.1 debug/integration support)
 
 Transaction rules:
 
@@ -251,8 +251,13 @@ Per `IMPLEMENTATION.md` we write:
 - `VisitIntegrationTest`: creates visitor + issues ticket + starts visit + activates wristband.
 - Service tests (`@SpringBootTest`, `@Transactional`) for `VisitService` domain rules:
 - `VisitServiceTest`: defaults visit date to today (UTC), rejects past visit dates, rejects if visitor already has an active visit, rejects if wristband already active.
-- Controller tests (`@WebMvcTest`, `@ActiveProfiles("test")`) to verify validation and error mapping:
-- `VisitControllerTest`: 400 on invalid DTOs; correct status codes for known business exceptions.
+ - Controller tests (`@WebMvcTest`, `@ActiveProfiles("test")`) to verify validation and error mapping:
+ - `VisitControllerTest`: 400 on invalid DTOs; correct status codes for known business exceptions.
+ - `RfidResolutionControllerTest`: 200 on resolvable ACTIVE visit; 404 when no ACTIVE visit; 400 on invalid RFID tag.
+
+RFID resolution tests (Phase 1.1):
+
+- `RfidResolutionIntegrationTest`: issues a visit via the real issuance endpoint, then resolves it via the debug RFID endpoint.
 
 ---
 
