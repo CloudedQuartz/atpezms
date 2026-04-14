@@ -12,10 +12,15 @@ It intentionally focuses on implementation-level decisions (dependencies, packag
 
 ## 1. Dependencies Introduced In Phase 1 (JIT / YAGNI)
 
-Phase 1 is the first slice that requires HTTP endpoints and database persistence. We will add:
+Phase 1 is the first slice that requires HTTP endpoints and database persistence. To keep changes educational and reviewable, dependencies are introduced in **fine-grained commits**.
+
+Phase 1.1 first introduces the web layer and request validation:
 
 - `spring-boot-starter-webmvc` (Spring MVC REST API)
 - `spring-boot-starter-validation` (Jakarta Bean Validation on request DTOs)
+
+Then, when we begin implementing persistence and migrations, we add:
+
 - `spring-boot-starter-data-jpa` (repositories + transactions)
 - `flyway-core` (schema migrations)
 - `com.h2database:h2` (embedded database)
@@ -198,7 +203,7 @@ Per `IMPLEMENTATION.md` we write:
   - creates visitor + issues ticket + starts visit
   - denies when capacity exceeded
   - denies when wristband already active
-- Controller tests (`@WebMvcTest`) to verify validation and error mapping:
+- Controller tests (`@WebMvcTest`, `@ActiveProfiles("test")`) to verify validation and error mapping:
   - 400 on invalid DTOs
   - correct status codes for known business exceptions
 

@@ -13,3 +13,6 @@ Created dedicated Phase 1 slice documents for Ticketing design and implementatio
 
 ## 2026-04-13 - Added Common Exception Hierarchy Baseline
 Introduced the shared exception taxonomy (`BaseException`, `ResourceNotFoundException`, `DuplicateResourceException`, `StateConflictException`, `BusinessRuleViolationException`) to normalize error semantics before controller work begins. Also standardized 422 handling with `HttpStatus.UNPROCESSABLE_ENTITY` to keep status intent explicit and avoid magic-number lookups.
+
+## 2026-04-13 - Implemented Global Error Handling (Common)
+Implemented the shared `ErrorResponse` DTO and a centralized `@RestControllerAdvice` (`GlobalExceptionHandler`) that maps domain exceptions and validation failures into consistent JSON error responses. Added explicit server-side logging for unexpected exceptions and completed handler coverage with tests for state conflicts and generic 500 behavior without leaking internal exception details.

@@ -146,6 +146,8 @@ New exception types are added by slices as needed. They must extend one of the f
 
 A single `@RestControllerAdvice` class in `common.exception` handles all exceptions. Controllers never catch exceptions themselves.
 
+Implemented in code as `com.atpezms.atpezms.common.exception.GlobalExceptionHandler`.
+
 **Error response body:**
 
 ```json
@@ -186,6 +188,8 @@ The handler also catches Spring-provided exceptions:
 ### 4.3 Error Response DTO
 
 An `ErrorResponse` record in `common.dto` models the error body above. A nested `FieldError` record holds field-level validation details. These are used only by the global exception handler -- controllers and services never construct them directly.
+
+Implemented in code as `com.atpezms.atpezms.common.dto.ErrorResponse`.
 
 ---
 
@@ -292,7 +296,7 @@ Rules to enforce invariants under load (CO-2, PR-2):
 Each slice produces tests at two levels:
 
 - **Integration tests (`@SpringBootTest`):** Boot the full application context, exercise the real service and repository layers against the in-memory H2 database. These verify that the slice works end-to-end, including transaction behavior and cross-context service calls.
-- **Controller tests (`@WebMvcTest`):** Test the controller layer in isolation. The service layer is mocked. These verify request/response mapping, validation, and error handling without touching the database.
+- **Controller tests (`@WebMvcTest`):** Test the controller layer in isolation. The service layer is mocked. These verify request/response mapping, validation, and error handling without touching the database. Requires `spring-boot-starter-webmvc-test` (Boot 4 moved web-layer test support into its own module).
 
 Unit tests for pure business logic methods are written where valuable but are not mandated for every class. Service methods that are thin delegation to a repository don't need a dedicated unit test -- the integration test covers them.
 
