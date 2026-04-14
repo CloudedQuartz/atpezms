@@ -16,3 +16,6 @@ Introduced the shared exception taxonomy (`BaseException`, `ResourceNotFoundExce
 
 ## 2026-04-13 - Implemented Global Error Handling (Common)
 Implemented the shared `ErrorResponse` DTO and a centralized `@RestControllerAdvice` (`GlobalExceptionHandler`) that maps domain exceptions and validation failures into consistent JSON error responses. Added explicit server-side logging for unexpected exceptions and completed handler coverage with tests for state conflicts and generic 500 behavior without leaking internal exception details.
+
+## 2026-04-13 - Required Same-Session Documentation Sync Workflow
+Added an explicit rule that non-trivial changes must re-read relevant project docs before coding and update the affected documentation in the same work session. This formalizes anti-drift behavior so design intent and implementation stay aligned commit by commit.
