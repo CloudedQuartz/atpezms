@@ -93,3 +93,6 @@ Implemented `GET /api/ticketing/rfid/{rfidTag}/active-visit` to resolve an RFID 
 
 ## 2026-04-14 - Synced Phase 1 Implementation Notes With Park/Ticketing Reality
 Updated the Phase 1 implementation notes to reflect already-implemented Park reference access (`ParkReferenceService`) and the shared `SeasonType` location in `common.entity`, removing stale "planned" wording.
+
+## 2026-04-15 - Implemented Phase 1.2 Multi-Day Ticket Issuance
+Removed the Phase 1.1 MULTI_DAY rejection guard and implemented full multi-day issuance: validity window is fixed at purchase time (validFrom = visitDate, validTo = visitDate + multiDayCount - 1, both immutable), and capacity is reserved atomically for every date in the window inside a single transaction — if any day is sold out the whole transaction rolls back (all-or-nothing). Also introduced the INACTIVE wristband status (V003 migration) to correctly represent wristbands that are physically on a visitor's wrist between multi-day visit sessions, distinct from IN_STOCK (unclaimed stockroom) and DEACTIVATED (retired). Tests cover validity window, per-day capacity reservation, all-or-nothing rollback (non-transactional test with committed setup), and the INACTIVE wristband rejection guard.

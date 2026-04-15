@@ -39,7 +39,13 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Core Phase 1.1 use case: sell a ticket, associate a wristband, and start an ACTIVE visit.
+ * Core Ticketing use case: sell a ticket, associate a wristband, and start an ACTIVE visit.
+ *
+ * <p>Phase 1.1: single-day issuance (SINGLE_DAY, RIDE_SPECIFIC, FAMILY, FAST_TRACK pass types).
+ * <p>Phase 1.2: multi-day issuance (MULTI_DAY pass type). Validity window is fixed at purchase:
+ * {@code validFrom = visitDate}, {@code validTo = visitDate + multiDayCount - 1}. Capacity is
+ * reserved atomically for every date in {@code [validFrom, validTo]}; if any single day is sold
+ * out the whole transaction rolls back.
  */
 @Service
 public class VisitService {
@@ -96,9 +102,6 @@ public class VisitService {
 		if (!passType.isActive()) {
 			throw new BusinessRuleViolationException("PASS_TYPE_INACTIVE", "Pass type is inactive");
 		}
-		if (passType.getCode() == PassTypeCode.MULTI_DAY) {
-			throw new BusinessRuleViolationException("PASS_TYPE_NOT_SUPPORTED_YET", "Multi-day issuance is implemented in Phase 1.2");
-		}
 
 		if (visitRepository.existsByVisitorAndStatus(visitor, VisitStatus.ACTIVE)) {
 			throw new StateConflictException("VISITOR_ALREADY_IN_PARK", "Visitor already has an active visit");
@@ -108,6 +111,14 @@ public class VisitService {
 		if (wristband.getStatus() == WristbandStatus.ACTIVE) {
 			throw new StateConflictException("WRISTBAND_ALREADY_ACTIVE", "Wristband is already active");
 		}
+		if (wristband.getStatus() == WristbandStatus.INACTIVE) {
+			// INACTIVE means the wristband was previously issued and is physically on a visitor's
+			// wrist between visit sessions (e.g. overnight for a multi-day pass). It cannot be
+			// re-issued to anyone via this endpoint. Day-N re-entry for the same visitor uses a
+			// separate flow implemented in Phase 4 (after checkout / Visit-end exists).
+			throw new StateConflictException("WRISTBAND_INACTIVE",
+					"Wristband is between visit sessions; use the day-N re-entry flow");
+		}
 		if (wristband.getStatus() == WristbandStatus.DEACTIVATED) {
 			throw new StateConflictException("WRISTBAND_DEACTIVATED", "Wristband is deactivated");
 		}
@@ -115,9 +126,35 @@ public class VisitService {
 			throw new StateConflictException("WRISTBAND_NOT_AVAILABLE", "Wristband is not available for activation");
 		}
 
-		// Reserve capacity first so any later failure rolls back the reservation.
-		reserveCapacityOrThrow(visitDate);
+		// Compute validity window.
+		// For single-day pass types the window is one day: validFrom == validTo == visitDate.
+		// For MULTI_DAY the window spans multiDayCount consecutive days starting from visitDate.
+		// visitDate (= validFrom) is fixed at purchase time and is immutable.
+		LocalDate validFrom = visitDate;
+		LocalDate validTo;
+		if (passType.getCode() == PassTypeCode.MULTI_DAY) {
+			Integer multiDayCount = passType.getMultiDayCount();
+			if (multiDayCount == null || multiDayCount <= 0) {
+				// Defensive guard: the DB CHECK and entity validation should prevent this,
+				// but a corrupted or hand-edited row must not cause a silent NPE.
+				throw new BusinessRuleViolationException("PASS_TYPE_MISCONFIGURED",
+						"MULTI_DAY pass type has an invalid multiDayCount: " + multiDayCount);
+			}
+			validTo = visitDate.plusDays(multiDayCount - 1);
+		} else {
+			validTo = visitDate;
+		}
 
+		// Reserve capacity for every date in [validFrom, validTo] inside this transaction.
+		// All-or-nothing: if any single day is sold out the loop throws and the transaction
+		// rolls back, releasing any capacity that was incremented for earlier dates in the loop.
+		for (LocalDate d = validFrom; !d.isAfter(validTo); d = d.plusDays(1)) {
+			reserveCapacityOrThrow(d);
+		}
+
+		// Price lookup uses visitDate (= validFrom) attributes.
+		// For MULTI_DAY the pass_type_prices row holds the total price for the whole pass,
+		// not a per-day rate. Anchoring the lookup to the start date is intentional.
 		AgeGroup ageGroup = toAgeGroup(visitor.getDateOfBirth(), visitDate);
 		DayType dayType = toDayType(visitDate);
 		SeasonType seasonType = parkReferenceService.getSeasonTypeForDate(visitDate);
@@ -128,8 +165,6 @@ public class VisitService {
 						"No price configured for pass type and visit date"
 				));
 
-		LocalDate validFrom = visitDate;
-		LocalDate validTo = visitDate;
 		Instant now = Instant.now(clock);
 
 		Ticket ticket = ticketRepository.save(new Ticket(

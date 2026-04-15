@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import com.atpezms.atpezms.ticketing.entity.PassTypeCode;
+import com.atpezms.atpezms.ticketing.repository.ParkDayCapacityRepository;
 import com.atpezms.atpezms.ticketing.repository.PassTypeRepository;
 import com.atpezms.atpezms.ticketing.repository.TicketRepository;
 import com.atpezms.atpezms.ticketing.repository.VisitRepository;
@@ -44,6 +45,9 @@ class VisitIntegrationTest {
 
 	@Autowired
 	private VisitRepository visitRepository;
+
+	@Autowired
+	private ParkDayCapacityRepository parkDayCapacityRepository;
 
 	@Autowired
 	private Clock clock;
@@ -96,5 +100,49 @@ class VisitIntegrationTest {
 		assertThat(visit.getWristband().getId()).isEqualTo(wristbandId);
 		assertThat(visit.getTicket().getId()).isEqualTo(ticketId);
 		assertThat(visit.getStatus().name()).isEqualTo("ACTIVE");
+	}
+
+	@Test
+	void shouldIssueMultiDayTicketAndReserveCapacityForAllDays() throws Exception {
+		var visitor = visitorRepository.save(new com.atpezms.atpezms.ticketing.entity.Visitor(
+				"Asha", "Kumar", null, null,
+				LocalDate.of(1995, 7, 10),
+				168
+		));
+		var passType = passTypeRepository.findByCode(PassTypeCode.MULTI_DAY).orElseThrow();
+		LocalDate todayUtc = LocalDate.now(clock.withZone(ZoneOffset.UTC));
+
+		String responseBody = mockMvc.perform(post("/api/ticketing/visits")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  \"visitorId\": %d,
+								  \"rfidTag\": \"INTEG-MULTI-001\",
+								  \"passTypeId\": %d
+								}
+								""".formatted(visitor.getId(), passType.getId())))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.validFrom").value(todayUtc.toString()))
+				.andExpect(jsonPath("$.validTo").value(todayUtc.plusDays(2).toString()))
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+
+		var json = JsonPath.parse(responseBody);
+		long ticketId = ((Number) json.read("$.ticketId")).longValue();
+		var ticket = ticketRepository.findById(ticketId).orElseThrow();
+		assertThat(ticket.getValidFrom()).isEqualTo(todayUtc);
+		assertThat(ticket.getValidTo()).isEqualTo(todayUtc.plusDays(2));
+
+		assertThat(parkDayCapacityRepository.findByVisitDate(todayUtc)).isPresent();
+		assertThat(parkDayCapacityRepository.findByVisitDate(todayUtc.plusDays(1))).isPresent();
+		assertThat(parkDayCapacityRepository.findByVisitDate(todayUtc.plusDays(2))).isPresent();
+
+		parkDayCapacityRepository.findByVisitDate(todayUtc).ifPresent(cap ->
+				assertThat(cap.getIssuedCount()).isGreaterThanOrEqualTo(1));
+		parkDayCapacityRepository.findByVisitDate(todayUtc.plusDays(1)).ifPresent(cap ->
+				assertThat(cap.getIssuedCount()).isGreaterThanOrEqualTo(1));
+		parkDayCapacityRepository.findByVisitDate(todayUtc.plusDays(2)).ifPresent(cap ->
+				assertThat(cap.getIssuedCount()).isGreaterThanOrEqualTo(1));
 	}
 }

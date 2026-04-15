@@ -190,8 +190,17 @@ Agreed Phase 1.1 rules (see `PHASE_01_TICKETING_DESIGN.md` §7.3):
 - `visitDate` defaults to `LocalDate.now(UTC)`.
 - `visitDate` must not be in the past (relative to `LocalDate.now(UTC)`).
 - If `rfidTag` is unknown, issuance auto-creates a new Wristband in `IN_STOCK` and then activates it.
-- If the selected PassType is `MULTI_DAY`, issuance is rejected in Phase 1.1 (implemented in Phase 1.2).
+- Phase 1.1 rejects `MULTI_DAY` pass types (`PASS_TYPE_NOT_SUPPORTED_YET`). Implemented in Phase 1.2.
 - Phase 1.1 does not create `AccessEntitlement` rows; entitlement creation rules are implemented in Phase 1.3.
+
+Phase 1.2 rules (multi-day issuance):
+
+- `MULTI_DAY` rejection guard removed. `MULTI_DAY` issuance follows the same flow as single-day with these differences:
+  - `validTo = visitDate.plusDays(passType.getMultiDayCount() - 1)` instead of `validTo = visitDate`.
+  - Capacity is reserved for every date in `[validFrom, validTo]` inside the same transaction using a loop over `reserveCapacityOrThrow`. If any day is sold out, the exception propagates and Spring rolls back all capacity increments for that transaction.
+  - Price lookup uses `visitDate` (= `validFrom`) attributes (ageGroup, dayType, seasonType). The `MULTI_DAY` price matrix rows represent the total pass price, not a per-day rate.
+- An `INACTIVE` wristband (between visit sessions for an existing multi-day visitor) is now explicitly rejected at the new-issuance boundary with `WRISTBAND_INACTIVE` (409). Day-N re-entry via an `INACTIVE` wristband is a separate flow deferred to Phase 4.
+- `visitDate` = `validFrom` is immutable once the Ticket row is persisted.
 
 Capacity enforcement implementation:
 
