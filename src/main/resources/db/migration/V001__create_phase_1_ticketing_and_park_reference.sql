@@ -348,7 +348,7 @@ INSERT INTO seasonal_periods (start_date, end_date, season_type, created_at, upd
 INSERT INTO pass_types (code, name, description, multi_day_count, active, created_at, updated_at) VALUES
     ('SINGLE_DAY',   'Single-Day Pass',      'Full park access for one day.',                                    NULL, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('MULTI_DAY',    'Multi-Day Pass',        'Full park access across multiple consecutive days.',               3,    TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-    ('RIDE_SPECIFIC','Ride-Specific Pass',    'Access to a curated set of rides for one day.',                   NULL, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('RIDE_SPECIFIC','Ride-Specific Pass',    'Phase 1: temporary zone-only entitlements (ride entitlements added in Phase 6).', NULL, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('FAMILY',       'Family Pass',           'Discounted group rate; each member gets an individual ticket.',   NULL, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('FAST_TRACK',   'Fast-Track Pass',       'Single-day access with queue priority on all eligible rides.',    NULL, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 

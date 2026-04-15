@@ -1,7 +1,6 @@
 package com.atpezms.atpezms.park.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.atpezms.atpezms.common.entity.SeasonType;
 import java.time.LocalDate;

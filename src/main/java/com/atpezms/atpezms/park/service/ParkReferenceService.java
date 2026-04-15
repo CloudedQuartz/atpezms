@@ -14,13 +14,13 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Service for Park reference data read queries.
  *
-	 * <p>Phase 1 introduces this service "Just In Time" so the Ticketing context
-	 * can query the active park capacity and the season type for a given date
-	 * without directly accessing the Park repositories.
-	 * (Rule: Contexts communicate via services, not cross-context repository access).
+ * <p>Phase 1 introduces this service "Just In Time" so the Ticketing context
+ * can query the active park capacity and the season type for a given date
+ * without directly accessing the Park repositories.
+ * (Rule: Contexts communicate via services, not cross-context repository access).
  *
-	 * <p>All methods are read-only.
-	 */
+ * <p>All methods are read-only.
+ */
 @Service
 @Transactional(readOnly = true)
 public class ParkReferenceService {
@@ -73,9 +73,10 @@ public class ParkReferenceService {
 	 * method returns scalar IDs instead of Park entity instances.
 	 */
 	public List<Long> listZoneIds() {
-		return zoneRepository.findAllByOrderByIdAsc()
+		// We return scalar IDs so Ticketing does not depend on Park entities.
+		return zoneRepository.findAllIdsOrderByIdAsc()
 				.stream()
-				.map(z -> Objects.requireNonNull(z.getId(), "Zone id must be present"))
+				.map(id -> Objects.requireNonNull(id, "Zone id must be present"))
 				.toList();
 	}
 }

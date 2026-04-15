@@ -3,6 +3,7 @@ package com.atpezms.atpezms.park.repository;
 import com.atpezms.atpezms.park.entity.Zone;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 /**
  * Park repository for Zone reference data.
@@ -18,4 +19,13 @@ public interface ZoneRepository extends JpaRepository<Zone, Long> {
 	 * tests and debugging deterministic.
 	 */
 	List<Zone> findAllByOrderByIdAsc();
+
+	/**
+	 * Lists zone IDs in a stable order.
+	 *
+	 * <p>Ticket issuance only needs scalar IDs; returning IDs avoids hydrating full
+	 * Zone entities on the issuance hot path.
+	 */
+	@Query("SELECT z.id FROM Zone z ORDER BY z.id")
+	List<Long> findAllIdsOrderByIdAsc();
 }

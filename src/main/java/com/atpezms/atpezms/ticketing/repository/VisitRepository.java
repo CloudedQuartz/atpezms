@@ -26,12 +26,13 @@ public interface VisitRepository extends JpaRepository<Visit, Long> {
      * @param rfidTag the raw tag scanned at the turnstile or POS
      * @return the active visit, fully hydrated with its associations
      */
-    @Query("SELECT v FROM Visit v " +
-           "JOIN FETCH v.visitor " +
-           "JOIN FETCH v.wristband w " +
-           "JOIN FETCH v.ticket " +
-           "WHERE w.rfidTag = :rfidTag AND v.status = 'ACTIVE'")
-    Optional<Visit> findActiveByRfidTag(@Param("rfidTag") String rfidTag);
+     @Query("SELECT v FROM Visit v " +
+            "JOIN FETCH v.visitor " +
+            "JOIN FETCH v.wristband w " +
+            "JOIN FETCH v.ticket t " +
+            "JOIN FETCH t.passType " +
+            "WHERE w.rfidTag = :rfidTag AND v.status = 'ACTIVE'")
+     Optional<Visit> findActiveByRfidTag(@Param("rfidTag") String rfidTag);
 
     /**
      * Checks if a wristband is currently assigned to an active visit.

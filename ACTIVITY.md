@@ -102,3 +102,6 @@ Specified Phase 1.3 entitlement creation rules in the Ticketing slice design: pe
 
 ## 2026-04-15 - Implemented Phase 1.3 Entitlement Creation At Issuance
 Extended `VisitService.issueTicketAndStartVisit` to persist `AccessEntitlement` rows in the same transaction as `Ticket` creation so the RFID resolution response reflects the contractual entitlements snapshot. Implemented Phase 1 semantics by creating one `ZONE` entitlement per seeded zone for all Phase 1 pass types, plus one `QUEUE_PRIORITY` entitlement with `priorityLevel = 2` for `FAST_TRACK`. Added service and integration test coverage that asserts entitlements are created and returned by the debug RFID resolution endpoint.
+
+## 2026-04-15 - Hardened RFID/Entitlement Hot Path (Phase 1.3)
+Hardened the scan hot path by eager-fetching `Ticket.passType` during RFID resolution to avoid an extra lazy-load query per scan. Added a deterministic ordering for entitlement reads and added a Flyway V004 migration that indexes `access_entitlements.ticket_id` plus enforces type-specific field invariants via a database CHECK (defense in depth). Also aligned seed text for `RIDE_SPECIFIC` so Phase 1 observable behavior matches the documented temporary semantics.

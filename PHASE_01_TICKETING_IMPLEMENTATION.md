@@ -255,6 +255,10 @@ Follow-up hardening migrations (added as requirements became concrete):
 2. `V003__add_wristband_inactive_status.sql` (adds `INACTIVE` wristband state for multi-day between-days)
 3. `V004__harden_access_entitlements_indexes_and_checks.sql` (adds hot-path index and DB CHECK for entitlement field invariants)
 
+Operational note:
+
+- V004 adds a strict CHECK constraint over existing `access_entitlements` rows. If a developer/test database contains legacy or hand-edited entitlement rows that violate the Phase 1 invariant (type-specific nullable columns), Flyway will fail on startup. In that situation, fix/delete the invalid rows (dev-only) or rebuild the dev DB so the constraint can be applied.
+
 Contents:
 
 - Create Park reference tables (`zones`, `park_configurations`, `seasonal_periods`)
