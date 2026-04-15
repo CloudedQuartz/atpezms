@@ -275,10 +275,10 @@ Consolidation note: Safety and Telemetry are thin contexts. If scope pressure re
 **Responsibility:** Staff user accounts, credentials, and role assignments. The system's answer to "who is making this request?"
 
 **Core entities:**
-- **User** -- A staff member or device service account. Has credentials (hashed password, even before security is implemented -- the field must exist for the security slice) and one or more roles.
-- **Role** -- An authority granted to a user. Maps to the roles in Section 4.2.
+- **StaffUser** -- A staff member or device service account. Has credentials (hashed password) and one or more roles. Named `StaffUser` (not `User`) because `USER` is a reserved SQL keyword in H2 and most relational databases; the entity is mapped to the `staff_users` table.
+- **Role** -- An authority granted to a user. Maps to the roles in Section 4.2. Implemented as a Java enum with `@ElementCollection` persistence (not a separate JPA entity) because the role set is a fixed, closed list defined by the specification.
 
-**Relationships:** User has many Roles (many-to-many).
+**Relationships:** StaffUser has many Roles (via `@ElementCollection` into a `staff_user_roles` join table).
 
 **Boundary:** This context does NOT manage visitors. Visitors are data entities in Ticketing. This context also does not implement authentication mechanics (JWT generation/validation) -- that is the security slice, which builds on top of Identity's user/role data.
 
