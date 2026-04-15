@@ -77,20 +77,30 @@ public class Wristband extends BaseEntity {
     }
 
     /**
-     * Returns the wristband to stock (e.g. when a visit ends successfully).
+     * Transitions the wristband to INACTIVE after a non-final visit session ends.
+     *
+     * <p>Used by the checkout flow (Phase 4 Billing) when a multi-day pass visitor
+     * exits the park at the end of a day that is not their last. The wristband
+     * stays physically on their wrist; INACTIVE signals to the rest of the system
+     * that no active Visit is behind this tag right now, while preserving the
+     * visitor's right to re-enter on a subsequent day of their pass.
      *
      * @throws IllegalStateException if the wristband is not ACTIVE
      */
-    public void returnToStock() {
+    public void makeInactive() {
         if (this.status != WristbandStatus.ACTIVE) {
             throw new IllegalStateException(
-                    "Cannot return a wristband to stock that is " + this.status);
+                    "Cannot make a wristband inactive that is " + this.status);
         }
-        this.status = WristbandStatus.IN_STOCK;
+        this.status = WristbandStatus.INACTIVE;
     }
 
     /**
-     * Deactivates the wristband permanently (e.g. lost or stolen).
+     * Permanently retires the wristband.
+     *
+     * <p>Called when a visitor completes their final visit session (single-day or
+     * last day of a multi-day pass) or when staff deactivate a lost/stolen band.
+     * A DEACTIVATED wristband can never be reused.
      */
     public void deactivate() {
         this.status = WristbandStatus.DEACTIVATED;

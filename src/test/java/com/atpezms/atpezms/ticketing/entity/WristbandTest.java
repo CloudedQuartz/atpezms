@@ -31,27 +31,25 @@ class WristbandTest {
     void shouldNotActivateIfNotInStock() {
         Wristband w = new Wristband("123");
         w.activate(); // now ACTIVE
-        
         assertThatThrownBy(w::activate)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Cannot activate");
     }
 
     @Test
-    void shouldReturnToStockFromActive() {
+    void shouldMakeInactiveFromActive() {
         Wristband w = new Wristband("123");
         w.activate();
-        w.returnToStock();
-        assertThat(w.getStatus()).isEqualTo(WristbandStatus.IN_STOCK);
+        w.makeInactive();
+        assertThat(w.getStatus()).isEqualTo(WristbandStatus.INACTIVE);
     }
 
     @Test
-    void shouldNotReturnToStockIfNotActive() {
+    void shouldNotMakeInactiveIfNotActive() {
         Wristband w = new Wristband("123"); // IN_STOCK
-        
-        assertThatThrownBy(w::returnToStock)
+        assertThatThrownBy(w::makeInactive)
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Cannot return");
+                .hasMessageContaining("Cannot make a wristband inactive");
     }
 
     @Test
@@ -59,8 +57,8 @@ class WristbandTest {
         Wristband w = new Wristband("123");
         w.deactivate();
         assertThat(w.getStatus()).isEqualTo(WristbandStatus.DEACTIVATED);
-        
+
         assertThatThrownBy(w::activate).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(w::returnToStock).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(w::makeInactive).isInstanceOf(IllegalStateException.class);
     }
 }
