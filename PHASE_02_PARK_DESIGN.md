@@ -311,7 +311,7 @@ Purpose: single-row table used for pessimistic locking to serialize concurrent w
 | ParkConfiguration | Capacity reduction must not undershoot already-issued counts | Service layer: check `park_day_capacity` rows for today+future (422 on conflict) |
 | ParkConfiguration | Records are append-only | No PUT/PATCH/DELETE endpoints |
 | SeasonalPeriod | `end_date >= start_date` | DB CHECK (V001) + service-layer cross-field check (422 on failure) |
-| SeasonalPeriod | `season_type` is `PEAK` or `OFF_PEAK` | DB CHECK (V001) + Bean Validation enum (400 on failure) |
+| SeasonalPeriod | `season_type` is `PEAK` or `OFF_PEAK` | DB CHECK (V001) + JSON deserialization (400 `MALFORMED_JSON` on unknown enum); `@NotNull` Bean Validation covers missing field (400 `VALIDATION_FAILED`) |
 | SeasonalPeriod | No overlapping date ranges | Service layer with pessimistic lock on `park_write_lock` (422 on conflict) |
 | SeasonalPeriod | Immutable after creation | No PUT/PATCH endpoint |
 | park_write_lock | Always contains exactly one row (`id = 1`) | V006 seed; application never writes to this table except to acquire the lock |

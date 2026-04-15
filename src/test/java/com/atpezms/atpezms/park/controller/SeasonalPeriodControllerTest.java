@@ -3,6 +3,7 @@ package com.atpezms.atpezms.park.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -176,7 +177,15 @@ class SeasonalPeriodControllerTest {
                 .andExpect(status().isBadRequest())
                 // Enum coercion fails during JSON deserialization, before Bean Validation.
                 // GlobalExceptionHandler maps this to MALFORMED_JSON.
-                .andExpect(jsonPath("$.code").value("MALFORMED_JSON"));
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.code").value("MALFORMED_JSON"))
+                .andExpect(jsonPath("$.message").value("Malformed request body"))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.fieldErrors").isArray())
+                .andExpect(jsonPath("$.fieldErrors.length()").value(0));
+
+        // Proves the failure is at deserialization boundary (controller/service not invoked).
+        verifyNoInteractions(periodService);
     }
 
     // -----------------------------------------------------------------------

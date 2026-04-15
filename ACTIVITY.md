@@ -120,3 +120,6 @@ Implemented SeasonalPeriod management endpoints (`GET /api/park/seasonal-periods
 
 ## 2026-04-15 - Hardened Phase 2.3 SeasonalPeriod Error Contract And Overlap Boundary Tests
 Aligned the Phase 2 Park design contract with actual Spring/Jackson behavior: an unknown `seasonType` enum value fails during JSON deserialization and is surfaced as 400 `MALFORMED_JSON` (not `VALIDATION_FAILED`). Strengthened controller tests to assert this error code so future changes can’t silently drift the API contract. Added explicit integration coverage for inclusive date-range overlap boundaries (sharing an endpoint day is a conflict; starting the day after is allowed).
+
+## 2026-04-15 - Eliminated Remaining Phase 2 SeasonalPeriod Doc Drift
+Updated the Phase 2 invariants/validation summary to correctly distinguish deserialization errors (unknown enum values) from Bean Validation failures (missing fields), keeping the design doc consistent with the global `GlobalExceptionHandler` behavior. Tightened the controller test to assert the full standard error envelope and to prove the service is not invoked when JSON deserialization fails.
