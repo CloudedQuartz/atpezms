@@ -173,7 +173,10 @@ class SeasonalPeriodControllerTest {
                                   "seasonType": "INVALID_TYPE"
                                 }
                                 """))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                // Enum coercion fails during JSON deserialization, before Bean Validation.
+                // GlobalExceptionHandler maps this to MALFORMED_JSON.
+                .andExpect(jsonPath("$.code").value("MALFORMED_JSON"));
     }
 
     // -----------------------------------------------------------------------

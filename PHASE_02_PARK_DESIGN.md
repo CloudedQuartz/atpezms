@@ -244,7 +244,8 @@ Response DTO fields per period: `id`, `startDate`, `endDate`, `seasonType`, `cre
 - Failure cases:
   - 422 `SEASONAL_PERIOD_INVALID_DATES` -- `endDate < startDate` (service-layer check, after validation).
   - 422 `SEASONAL_PERIOD_DATE_CONFLICT` -- the proposed range overlaps an existing period.
-  - 400 `VALIDATION_FAILED` -- missing required fields or unknown `seasonType` value.
+  - 400 `VALIDATION_FAILED` -- missing required fields.
+  - 400 `MALFORMED_JSON` -- unknown `seasonType` value (JSON deserialization/type mismatch).
 - Success: 201 Created.
 
 Why is `endDate < startDate` a 422 (business rule) rather than 400 (validation)? The dates themselves are individually valid ISO dates, so the Bean Validation layer accepts them. The constraint "end must not precede start" is a cross-field domain rule, which by DESIGN.md §3.2 convention maps to 422.

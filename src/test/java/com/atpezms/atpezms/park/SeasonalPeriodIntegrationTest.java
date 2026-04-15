@@ -158,6 +158,62 @@ class SeasonalPeriodIntegrationTest {
                 .andExpect(jsonPath("$.endDate").value("2027-08-15"));
     }
 
+    @Test
+    void shouldRejectPeriodThatSharesAnEndpointDay() throws Exception {
+        // Existing: [2027-01-01, 2027-01-31]
+        mockMvc.perform(post("/api/park/seasonal-periods")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "startDate": "2027-01-01",
+                                  "endDate":   "2027-01-31",
+                                  "seasonType": "OFF_PEAK"
+                                }
+                                """))
+                .andExpect(status().isCreated());
+
+        // Proposed touches the endpoint day 2027-01-31, so it overlaps (inclusive endpoints).
+        mockMvc.perform(post("/api/park/seasonal-periods")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "startDate": "2027-01-31",
+                                  "endDate":   "2027-02-10",
+                                  "seasonType": "PEAK"
+                                }
+                                """))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("SEASONAL_PERIOD_DATE_CONFLICT"));
+    }
+
+    @Test
+    void shouldAllowPeriodThatStartsTheDayAfterExistingEnds() throws Exception {
+        // Existing: [2027-03-01, 2027-03-31]
+        mockMvc.perform(post("/api/park/seasonal-periods")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "startDate": "2027-03-01",
+                                  "endDate":   "2027-03-31",
+                                  "seasonType": "OFF_PEAK"
+                                }
+                                """))
+                .andExpect(status().isCreated());
+
+        // Proposed starts the next day (no overlap).
+        mockMvc.perform(post("/api/park/seasonal-periods")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "startDate": "2027-04-01",
+                                  "endDate":   "2027-04-15",
+                                  "seasonType": "PEAK"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.startDate").value("2027-04-01"));
+    }
+
     // -----------------------------------------------------------------------
     // DELETE /api/park/seasonal-periods/{id}
     // -----------------------------------------------------------------------
