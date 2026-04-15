@@ -329,6 +329,21 @@ V002__create_park_zones_and_config.sql
 V003__create_identity_users_and_roles.sql
 ```
 
+#### H2 SQL Compatibility Rules
+
+H2 has a stricter SQL dialect in some areas compared to PostgreSQL/MySQL. Rules discovered through development:
+
+- **No multi-column `ALTER TABLE ADD COLUMN`:** H2 does not support adding multiple columns in a single `ALTER TABLE` statement. Each column requires its own statement:
+  ```sql
+  -- WRONG (fails in H2):
+  ALTER TABLE zones ADD COLUMN description VARCHAR(500), ADD COLUMN active BOOLEAN NOT NULL DEFAULT TRUE;
+
+  -- CORRECT:
+  ALTER TABLE zones ADD COLUMN description VARCHAR(500);
+  ALTER TABLE zones ADD COLUMN active BOOLEAN NOT NULL DEFAULT TRUE;
+  ```
+  Note: this is H2-specific. When migrating to a real database in future, multi-column `ADD COLUMN` is supported by most engines and can be used in production migrations.
+
 ### 9.3 Concurrency & Data Integrity
 
 Rules to enforce invariants under load (CO-2, PR-2):
