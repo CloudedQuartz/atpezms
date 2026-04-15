@@ -91,6 +91,8 @@ Rules, executed atomically in the same transaction as config activation:
 
 Why? An operator who sets a new capacity expects it to take effect for the current operational period, not only for dates that haven't been initialized yet. A capacity increase (common case) is always safe. A capacity reduction is allowed unless it would require "un-issuing" already-sold tickets, which is impossible.
 
+**Known limitation (acceptable for this phase):** The conflict check (`SELECT` conflicting rows) and the bulk update (`UPDATE max_capacity`) are two separate database statements. In theory, a concurrent ticket issuance could increment `issued_count` on a `park_day_capacity` row in the window between these two statements, allowing the update to commit with `max_capacity < issued_count` for that row. In practice this race requires simultaneous admin capacity changes and ticket issuance at high volume on specific future dates -- an operationally unlikely scenario. The `park_write_lock` serializes concurrent *config activation* requests against each other but does not block concurrent ticket issuance. A production-grade fix would lock the affected `park_day_capacity` rows pessimistically before the check. This is deferred; the limitation is documented here so it is not forgotten.
+
 ### 2.6 SeasonalPeriod Immutability
 
 SeasonalPeriods are immutable once created. If a period is wrong, delete it and create a new one. No `PUT`/`PATCH` endpoint.
