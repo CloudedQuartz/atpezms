@@ -347,6 +347,11 @@ Notes:
 - `ride_id` will reference rides once the Rides slice exists.
 - Ticketing stores entitlements; Rides enforces them.
 
+Invariant:
+
+- Exactly one of (`zone_id`, `ride_id`, `priority_level`) is populated based on `entitlement_type`.
+  This is enforced in both application validation and database CHECK constraints.
+
 #### 4.2.8 `park_day_capacity`
 
 Purpose: concurrency-safe daily capacity enforcement.
@@ -606,7 +611,8 @@ Entitlement item fields:
 
 Phase 1.1 note:
 
-- Phase 1.1 does not create `access_entitlements` rows, so `entitlements` will be an empty list until Phase 1.3 implements entitlement creation.
+- Phase 1.1 does not create `access_entitlements` rows, so `entitlements` is an empty list in that sub-slice.
+- After Phase 1.3, `entitlements` is populated according to the rules in §10.
 
 Failure cases:
 
@@ -634,4 +640,106 @@ We will implement Phase 1 in sub-slices, each still following: detailed design (
 
 1. Phase 1.1 Visitor registration, pass type listing, single-day ticket issuance + capacity enforcement, wristband association, active visit creation, RFID resolution.
 2. Phase 1.2 Multi-day ticket issuance: `valid_from = visitDate`, `valid_to = visitDate + multiDayCount - 1`, capacity reserved atomically for every day in `[valid_from, valid_to]`, all-or-nothing rollback if any day is sold out. Day-N entry rules designed in §6.1; implementation deferred to after Phase 4 Billing.
-3. Phase 1.3 AccessEntitlement creation rules for ride-specific and fast-track passes (data model already present), plus hardening (concurrency edge cases, additional validation, indexes, test coverage expansion).
+3. Phase 1.3 AccessEntitlement creation rules (data model already present), plus hardening (concurrency edge cases, additional validation, indexes, test coverage expansion).
+
+---
+
+## 10. Access Entitlement Creation Rules (Phase 1.3)
+
+Phase 1.3 extends the ticket issuance flow so that when a `Ticket` is created, its
+`AccessEntitlement` rows are also created in the same transaction.
+
+### 10.1 Why entitlements are created at issuance time
+
+The Ticket is the contractual statement of what the visitor bought. Storing
+entitlements at issuance time means:
+
+- The entitlement set is a durable snapshot. Later changes to Zone definitions or
+  pass configuration do not retroactively rewrite what an already-issued ticket
+  granted.
+- Scan-processing contexts (Rides, Food, Merchandise, Events) can resolve RFID to
+  an Active Visit and immediately see the entitlement rows without recomputing
+  them.
+
+### 10.2 Entitlement types used in Phase 1
+
+Phase 1 uses three entitlement types (see `access_entitlements.entitlement_type`):
+
+- `ZONE`: allows the visitor to enter a given Park Zone.
+- `RIDE`: allows the visitor to use a specific Ride (Rides context owns rides).
+- `QUEUE_PRIORITY`: grants a priority level used by the Rides queue policy.
+
+Phase 1 implements only the creation of these rows. Enforcement is performed by
+later slices (notably Phase 6 Rides).
+
+### 10.3 Zone entitlements and the meaning of “full park access”
+
+In Phase 1, “full park access” is represented as a `ZONE` entitlement row for
+every seeded Zone.
+
+Zone list source:
+
+- Ticketing reads Zones via a Park service call (Ticketing never reads Park
+  repositories directly; cross-context rule in `DESIGN.md` §6.1).
+
+Operational note:
+
+- This produces one `ZONE` entitlement row per zone at the time the ticket is
+  issued.
+
+### 10.4 Queue priority levels
+
+`QUEUE_PRIORITY` uses a simple positive integer `priorityLevel`:
+
+- `1` = normal queue (default, represented by absence of a QUEUE_PRIORITY row)
+- `2` = fast-track queue
+
+Rationale:
+
+- Using an integer keeps the model extensible (VIP tiers later) without schema
+  change.
+- Absence-of-row as “normal” avoids writing redundant entitlements.
+
+### 10.5 Rules per PassTypeCode
+
+When issuing a ticket, create entitlements as follows:
+
+- `SINGLE_DAY`:
+  - Create `ZONE` entitlements for all zones.
+- `MULTI_DAY`:
+  - Create `ZONE` entitlements for all zones.
+  - Rationale: the ticket is valid across multiple days, but the access scope is
+    the same as a single-day full-access pass.
+- `FAMILY`:
+  - Create `ZONE` entitlements for all zones.
+  - Rationale: “Family” is a pricing/packaging category; it does not change park
+    access scope.
+- `FAST_TRACK`:
+  - Create `ZONE` entitlements for all zones.
+  - Create one `QUEUE_PRIORITY` entitlement with `priorityLevel = 2`.
+- `RIDE_SPECIFIC` (temporary Phase 1 semantics):
+  - Create `ZONE` entitlements for all zones.
+  - Do **not** create `RIDE` entitlements in Phase 1.
+
+Rationale for the temporary `RIDE_SPECIFIC` semantics:
+
+- The Rides context (Phase 6) does not exist yet, so there is no authoritative
+  ride reference data to attach `RIDE` entitlements to.
+- Seeding placeholder ride IDs in Phase 1 would introduce cross-slice coupling
+  and premature scope.
+- We prefer an explicit, documented temporary behavior over fake identifiers.
+
+This is a known limitation: until Phase 6, `RIDE_SPECIFIC` behaves like a
+zone-access pass from the perspective of entitlement rows. Phase 6 revises this
+behavior to create `RIDE` entitlements for the curated ride set.
+
+### 10.6 Transactionality
+
+Entitlement rows are created in the same transaction as:
+
+- capacity reservation
+- `Ticket` creation
+- `Wristband` activation
+- `Visit` creation
+
+If any step fails (e.g., capacity exceeded), no entitlements are persisted.

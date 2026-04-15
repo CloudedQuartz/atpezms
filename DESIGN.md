@@ -322,6 +322,13 @@ Consolidation note: Safety and Telemetry are thin contexts. If scope pressure re
 - Fast-track passes: grant queue priority via a priority AccessEntitlement. The exact priority mechanism is defined in the Rides slice.
 - Family passes: a pricing category for group registration. Each family member gets their own Visitor record, Wristband, and individual billing. The "family" benefit is the discounted group rate at purchase time.
 
+Implementation phasing note (Phase 1):
+
+- Until the Rides context exists (Phase 6), Ticketing cannot attach `RIDE` entitlements to real Ride IDs.
+  Phase 1 therefore treats `RIDE_SPECIFIC` as a temporary zone-access pass from the perspective of
+  stored entitlement rows (zone entitlements only). Phase 6 revises this to issue ride-level
+  entitlements for the curated ride set.
+
 **FR/NFR coverage:** FR-VT1 (pass types), FR-VT2 (pricing via PassType + SeasonalPeriod), FR-VT3 (capacity enforcement), FR-VT4 (RFID association), CO-1 (RFID as sole identifier), PR-1 (resolution performance).
 
 ---

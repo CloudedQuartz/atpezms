@@ -78,8 +78,8 @@ Current state in code (Phase 1, incremental):
 - `ticketing.dto`: `PassTypeResponse`, `CreateVisitorRequest`, `VisitorResponse`, `IssueVisitRequest`, `IssueVisitResponse`.
 - `park.entity`: `Zone`, `ParkConfiguration`, `SeasonalPeriod`.
 - `common.entity`: `BaseEntity`, `SeasonType` (shared enum).
-- `park.repository`: `ParkConfigurationRepository`, `SeasonalPeriodRepository`.
-- `park.service`: `ParkReferenceService` (provides active config and season type resolution for Ticketing).
+- `park.repository`: `ParkConfigurationRepository`, `SeasonalPeriodRepository`, `ZoneRepository`.
+- `park.service`: `ParkReferenceService` (provides capacity, season type, and zone IDs for Ticketing).
 
 Park entities modelled so far:
 
@@ -91,6 +91,10 @@ Park entities modelled so far:
 Next (just-in-time):
 
 - (Done) Introduced `park.repository` / `park.service` for Ticketing's pricing/capacity reads (active park configuration + seasonal period lookup).
+
+Implementation detail:
+
+- `ParkReferenceService` exposes scalar queries (e.g., `getActiveMaxDailyCapacity()`, `listZoneIds()`) so Ticketing does not depend on Park JPA entities across the context boundary.
 
 Implementation note:
 
@@ -202,10 +206,20 @@ Phase 1.2 rules (multi-day issuance):
 - An `INACTIVE` wristband (between visit sessions for an existing multi-day visitor) is now explicitly rejected at the new-issuance boundary with `WRISTBAND_INACTIVE` (409). Day-N re-entry via an `INACTIVE` wristband is a separate flow deferred to Phase 4.
 - `visitDate` = `validFrom` is immutable once the Ticket row is persisted.
 
+Phase 1.3 rules (entitlement creation at issuance):
+
+- `issueTicketAndStartVisit` creates `AccessEntitlement` rows inside the same transaction as the
+  `Ticket` and `Visit`.
+- Zone access is represented as one `ZONE` entitlement row per seeded Park Zone. Ticketing obtains
+  zones via the Park service query surface (no cross-context repository access).
+- `FAST_TRACK` additionally creates one `QUEUE_PRIORITY` entitlement row with `priorityLevel = 2`.
+- Phase 1 treats `RIDE_SPECIFIC` as zone-only for entitlement rows. Ride-level entitlements are
+  introduced when the Rides context owns ride reference data (Phase 6).
+
 Capacity enforcement implementation:
 
 - Implement the guarded increment as a repository `@Modifying` update query and check the affected row count.
-- If the day row does not exist, insert it (with max capacity copied from active park configuration) and retry once.
+- If the day row does not exist, insert it (with max capacity copied from the active configuration) and retry once.
 
 ---
 
@@ -234,6 +248,12 @@ Phase 1 introduces the first schema, so Flyway starts at `V001`.
 Planned migrations:
 
 1. `V001__create_phase_1_ticketing_and_park_reference.sql`
+
+Follow-up hardening migrations (added as requirements became concrete):
+
+1. `V002__enforce_pass_types_multi_day_count_invariant.sql` (database CHECK on pass type configuration invariants)
+2. `V003__add_wristband_inactive_status.sql` (adds `INACTIVE` wristband state for multi-day between-days)
+3. `V004__harden_access_entitlements_indexes_and_checks.sql` (adds hot-path index and DB CHECK for entitlement field invariants)
 
 Contents:
 
@@ -267,6 +287,11 @@ Per `IMPLEMENTATION.md` we write:
 RFID resolution tests (Phase 1.1):
 
 - `RfidResolutionIntegrationTest`: issues a visit via the real issuance endpoint, then resolves it via the debug RFID endpoint.
+
+Entitlement creation tests (Phase 1.3):
+
+- `VisitServiceTest`: asserts entitlement rows are created per pass type.
+- `RfidResolutionIntegrationTest`: asserts the debug RFID resolution endpoint returns entitlements after issuance.
 
 ---
 
