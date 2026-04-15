@@ -5,11 +5,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.atpezms.atpezms.common.exception.BusinessRuleViolationException;
 import com.atpezms.atpezms.common.exception.StateConflictException;
+import com.atpezms.atpezms.park.service.ParkReferenceService;
 import com.atpezms.atpezms.ticketing.dto.IssueVisitRequest;
 import com.atpezms.atpezms.ticketing.dto.IssueVisitResponse;
+import com.atpezms.atpezms.ticketing.entity.EntitlementType;
 import com.atpezms.atpezms.ticketing.entity.PassTypeCode;
 import com.atpezms.atpezms.ticketing.entity.VisitStatus;
 import com.atpezms.atpezms.ticketing.entity.WristbandStatus;
+import com.atpezms.atpezms.ticketing.repository.AccessEntitlementRepository;
 import com.atpezms.atpezms.ticketing.repository.ParkDayCapacityRepository;
 import jakarta.persistence.EntityManager;
 import com.atpezms.atpezms.ticketing.repository.PassTypeRepository;
@@ -19,6 +22,7 @@ import com.atpezms.atpezms.ticketing.repository.WristbandRepository;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -46,6 +50,12 @@ class VisitServiceTest {
 
 	@Autowired
 	private ParkDayCapacityRepository parkDayCapacityRepository;
+
+	@Autowired
+	private AccessEntitlementRepository accessEntitlementRepository;
+
+	@Autowired
+	private ParkReferenceService parkReferenceService;
 
 	@Autowired
 	private EntityManager entityManager;
@@ -208,9 +218,8 @@ class VisitServiceTest {
 		assertThat(parkDayCapacityRepository.findByVisitDate(todayUtc.plusDays(2)).orElseThrow().getIssuedCount()).isEqualTo(before2 + 1);
 	}
 
-	// TODO(phase-1.2): Add a non-transactional test that verifies all-or-nothing rollback when any day in a
-	//  multi-day window is sold out. This class is @Transactional, so rollback behavior is hard to observe
-	//  directly from within a single test method.
+	// Note: all-or-nothing rollback for multi-day capacity is verified in
+	// VisitServiceCapacityRollbackTest (non-transactional test that commits setup data).
 
 	@Test
 	void shouldRejectInactiveWristband() {
@@ -235,5 +244,111 @@ class VisitServiceTest {
 		)))
 				.isInstanceOf(StateConflictException.class)
 				.hasMessageContaining("between visit sessions");
+	}
+
+	@Test
+	void shouldCreateZoneEntitlementsForSingleDayTicket() {
+		var visitor = visitorRepository.save(new com.atpezms.atpezms.ticketing.entity.Visitor(
+				"Jane", "Doe", null, null,
+				LocalDate.of(1990, 1, 1),
+				170
+		));
+		var passType = passTypeRepository.findByCode(PassTypeCode.SINGLE_DAY).orElseThrow();
+		int zoneCount = parkReferenceService.listZoneIds().size();
+
+		IssueVisitResponse resp = visitService.issueTicketAndStartVisit(new IssueVisitRequest(
+				visitor.getId(),
+				"ENT-SINGLE-001",
+				passType.getId(),
+				null
+		));
+
+		var entitlements = accessEntitlementRepository.findByTicketId(resp.ticketId());
+		assertThat(entitlements).hasSize(zoneCount);
+		assertThat(entitlements)
+				.allSatisfy(e -> {
+					assertThat(e.getEntitlementType()).isEqualTo(EntitlementType.ZONE);
+					assertThat(e.getZoneId()).isNotNull();
+					assertThat(e.getRideId()).isNull();
+					assertThat(e.getPriorityLevel()).isNull();
+				});
+		assertThat(entitlements.stream().map(e -> e.getZoneId()).distinct().count()).isEqualTo(zoneCount);
+	}
+
+	@Test
+	void shouldCreateQueuePriorityEntitlementForFastTrack() {
+		var visitor = visitorRepository.save(new com.atpezms.atpezms.ticketing.entity.Visitor(
+				"Jane", "Doe", null, null,
+				LocalDate.of(1990, 1, 1),
+				170
+		));
+		var passType = passTypeRepository.findByCode(PassTypeCode.FAST_TRACK).orElseThrow();
+		int zoneCount = parkReferenceService.listZoneIds().size();
+
+		IssueVisitResponse resp = visitService.issueTicketAndStartVisit(new IssueVisitRequest(
+				visitor.getId(),
+				"ENT-FAST-001",
+				passType.getId(),
+				null
+		));
+
+		var entitlements = accessEntitlementRepository.findByTicketId(resp.ticketId());
+		assertThat(entitlements).hasSize(zoneCount + 1);
+
+		assertThat(entitlements.stream().filter(e -> e.getEntitlementType() == EntitlementType.QUEUE_PRIORITY).toList())
+				.singleElement()
+				.satisfies(e -> {
+					assertThat(e.getPriorityLevel()).isEqualTo(2);
+					assertThat(e.getZoneId()).isNull();
+					assertThat(e.getRideId()).isNull();
+				});
+	}
+
+	@Test
+	void shouldTreatRideSpecificAsZoneOnlyInPhase1() {
+		var visitor = visitorRepository.save(new com.atpezms.atpezms.ticketing.entity.Visitor(
+				"Jane", "Doe", null, null,
+				LocalDate.of(1990, 1, 1),
+				170
+		));
+		var passType = passTypeRepository.findByCode(PassTypeCode.RIDE_SPECIFIC).orElseThrow();
+		int zoneCount = parkReferenceService.listZoneIds().size();
+
+		IssueVisitResponse resp = visitService.issueTicketAndStartVisit(new IssueVisitRequest(
+				visitor.getId(),
+				"ENT-RIDE-001",
+				passType.getId(),
+				null
+		));
+
+		var entitlements = accessEntitlementRepository.findByTicketId(resp.ticketId());
+		assertThat(entitlements).hasSize(zoneCount);
+		assertThat(entitlements)
+				.allSatisfy(e -> assertThat(e.getEntitlementType()).isEqualTo(EntitlementType.ZONE));
+	}
+
+	@Test
+	void shouldCreateZoneEntitlementsForMultiDayAndFamilyTickets() {
+		int zoneCount = parkReferenceService.listZoneIds().size();
+
+		for (PassTypeCode code : List.of(PassTypeCode.MULTI_DAY, PassTypeCode.FAMILY)) {
+			var visitor = visitorRepository.save(new com.atpezms.atpezms.ticketing.entity.Visitor(
+					"Jane", "Doe", null, null,
+					LocalDate.of(1990, 1, 1),
+					170
+			));
+			var passType = passTypeRepository.findByCode(code).orElseThrow();
+			IssueVisitResponse resp = visitService.issueTicketAndStartVisit(new IssueVisitRequest(
+					visitor.getId(),
+					"ENT-" + code + "-001",
+					passType.getId(),
+					null
+			));
+
+			var entitlements = accessEntitlementRepository.findByTicketId(resp.ticketId());
+			assertThat(entitlements).hasSize(zoneCount);
+			assertThat(entitlements)
+					.allSatisfy(e -> assertThat(e.getEntitlementType()).isEqualTo(EntitlementType.ZONE));
+		}
 	}
 }

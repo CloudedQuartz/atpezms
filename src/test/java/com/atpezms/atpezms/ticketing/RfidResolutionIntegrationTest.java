@@ -1,5 +1,6 @@
 package com.atpezms.atpezms.ticketing;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -68,7 +69,40 @@ class RfidResolutionIntegrationTest {
 				.andExpect(jsonPath("$.validFrom").value(todayUtc.toString()))
 				.andExpect(jsonPath("$.validTo").value(todayUtc.toString()))
 				.andExpect(jsonPath("$.heightCm").value(168))
-				// Phase 1.1: entitlements are not yet created, so the list is empty.
-				.andExpect(jsonPath("$.entitlements").isArray());
+				.andExpect(jsonPath("$.entitlements").isArray())
+				.andExpect(jsonPath("$.entitlements").isNotEmpty())
+				.andExpect(jsonPath("$.entitlements[*].entitlementType").value(hasItem("ZONE")));
+	}
+
+	@Test
+	void shouldIncludeQueuePriorityEntitlementForFastTrack() throws Exception {
+		var visitor = visitorRepository.save(new com.atpezms.atpezms.ticketing.entity.Visitor(
+				"Asha", "Kumar", null, null,
+				LocalDate.of(1995, 7, 10),
+				168
+		));
+		var passType = passTypeRepository.findByCode(PassTypeCode.FAST_TRACK).orElseThrow();
+		LocalDate todayUtc = LocalDate.now(clock.withZone(ZoneOffset.UTC));
+
+		String rfidTag = "RFID-RESOLVE-FAST-001";
+
+		mockMvc.perform(post("/api/ticketing/visits")
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("""
+							{
+							  \"visitorId\": %d,
+							  \"rfidTag\": \"%s\",
+							  \"passTypeId\": %d
+							}
+							""".formatted(visitor.getId(), rfidTag, passType.getId())))
+				.andExpect(status().isCreated());
+
+		mockMvc.perform(get("/api/ticketing/rfid/{rfidTag}/active-visit", rfidTag))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.passTypeCode").value("FAST_TRACK"))
+				.andExpect(jsonPath("$.validFrom").value(todayUtc.toString()))
+				.andExpect(jsonPath("$.validTo").value(todayUtc.toString()))
+				.andExpect(jsonPath("$.entitlements[*].entitlementType").value(hasItem("QUEUE_PRIORITY")))
+				.andExpect(jsonPath("$.entitlements[*].priorityLevel").value(hasItem(2)));
 	}
 }

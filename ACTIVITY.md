@@ -99,3 +99,6 @@ Removed the Phase 1.1 MULTI_DAY rejection guard and implemented full multi-day i
 
 ## 2026-04-15 - Designed Phase 1.3 Entitlement Creation Rules
 Specified Phase 1.3 entitlement creation rules in the Ticketing slice design: persist `AccessEntitlement` rows as an immutable snapshot at ticket issuance so scan-processing contexts can resolve RFID to a stable entitlement set without recomputing it. Defined Phase 1 semantics: full park access is represented as one `ZONE` entitlement per seeded zone, and `FAST_TRACK` additionally grants one `QUEUE_PRIORITY` entitlement with `priorityLevel = 2`. Documented a temporary Phase 1 behavior where `RIDE_SPECIFIC` is treated as zone-only for stored entitlements until Phase 6 introduces authoritative ride reference data.
+
+## 2026-04-15 - Implemented Phase 1.3 Entitlement Creation At Issuance
+Extended `VisitService.issueTicketAndStartVisit` to persist `AccessEntitlement` rows in the same transaction as `Ticket` creation so the RFID resolution response reflects the contractual entitlements snapshot. Implemented Phase 1 semantics by creating one `ZONE` entitlement per seeded zone for all Phase 1 pass types, plus one `QUEUE_PRIORITY` entitlement with `priorityLevel = 2` for `FAST_TRACK`. Added service and integration test coverage that asserts entitlements are created and returned by the debug RFID resolution endpoint.

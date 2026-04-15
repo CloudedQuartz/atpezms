@@ -7,8 +7,10 @@ import com.atpezms.atpezms.common.exception.StateConflictException;
 import com.atpezms.atpezms.park.service.ParkReferenceService;
 import com.atpezms.atpezms.ticketing.dto.IssueVisitRequest;
 import com.atpezms.atpezms.ticketing.dto.IssueVisitResponse;
+import com.atpezms.atpezms.ticketing.entity.AccessEntitlement;
 import com.atpezms.atpezms.ticketing.entity.AgeGroup;
 import com.atpezms.atpezms.ticketing.entity.DayType;
+import com.atpezms.atpezms.ticketing.entity.EntitlementType;
 import com.atpezms.atpezms.ticketing.entity.ParkDayCapacity;
 import com.atpezms.atpezms.ticketing.entity.PassType;
 import com.atpezms.atpezms.ticketing.entity.PassTypeCode;
@@ -19,6 +21,7 @@ import com.atpezms.atpezms.ticketing.entity.VisitStatus;
 import com.atpezms.atpezms.ticketing.entity.Visitor;
 import com.atpezms.atpezms.ticketing.entity.Wristband;
 import com.atpezms.atpezms.ticketing.entity.WristbandStatus;
+import com.atpezms.atpezms.ticketing.repository.AccessEntitlementRepository;
 import com.atpezms.atpezms.ticketing.repository.ParkDayCapacityRepository;
 import com.atpezms.atpezms.ticketing.repository.PassTypePriceRepository;
 import com.atpezms.atpezms.ticketing.repository.PassTypeRepository;
@@ -31,6 +34,8 @@ import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,12 +54,15 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 @Service
 public class VisitService {
+	private static final int FAST_TRACK_PRIORITY_LEVEL = 2;
+
 	private final VisitorRepository visitorRepository;
 	private final PassTypeRepository passTypeRepository;
 	private final PassTypePriceRepository passTypePriceRepository;
 	private final WristbandRepository wristbandRepository;
 	private final TicketRepository ticketRepository;
 	private final VisitRepository visitRepository;
+	private final AccessEntitlementRepository accessEntitlementRepository;
 	private final ParkDayCapacityRepository parkDayCapacityRepository;
 	private final ParkReferenceService parkReferenceService;
 	private final Clock clock;
@@ -67,6 +75,7 @@ public class VisitService {
 			WristbandRepository wristbandRepository,
 			TicketRepository ticketRepository,
 			VisitRepository visitRepository,
+			AccessEntitlementRepository accessEntitlementRepository,
 			ParkDayCapacityRepository parkDayCapacityRepository,
 			ParkReferenceService parkReferenceService,
 			Clock clock,
@@ -78,6 +87,7 @@ public class VisitService {
 		this.wristbandRepository = wristbandRepository;
 		this.ticketRepository = ticketRepository;
 		this.visitRepository = visitRepository;
+		this.accessEntitlementRepository = accessEntitlementRepository;
 		this.parkDayCapacityRepository = parkDayCapacityRepository;
 		this.parkReferenceService = parkReferenceService;
 		this.clock = clock;
@@ -178,11 +188,41 @@ public class VisitService {
 				now
 		));
 
+		// Phase 1.3: persist the ticket's entitlement snapshot at issuance time.
+		createEntitlementsOrThrow(ticket);
+
 		wristband.activate();
 		wristbandRepository.save(wristband);
 
 		Visit visit = visitRepository.save(new Visit(visitor, wristband, ticket, now));
 		return IssueVisitResponse.from(visit);
+	}
+
+	private void createEntitlementsOrThrow(Ticket ticket) {
+		PassTypeCode code = ticket.getPassType().getCode();
+		List<AccessEntitlement> entitlements = new ArrayList<>();
+
+		// In Phase 1, "full park access" is represented as one ZONE entitlement row
+		// per seeded zone. Phase 1 also treats RIDE_SPECIFIC as zone-only until the
+		// Rides context owns ride reference data.
+		switch (code) {
+			case SINGLE_DAY, MULTI_DAY, FAMILY, FAST_TRACK, RIDE_SPECIFIC -> {
+				var zoneIds = parkReferenceService.listZoneIds();
+				if (zoneIds.isEmpty()) {
+					throw new IllegalStateException("No park zones are configured; cannot issue zone entitlements");
+				}
+				zoneIds.forEach(zoneId ->
+						entitlements.add(new AccessEntitlement(ticket, EntitlementType.ZONE, zoneId, null, null))
+				);
+			}
+			default -> throw new IllegalStateException("Unsupported pass type code: " + code);
+		}
+
+		if (code == PassTypeCode.FAST_TRACK) {
+			entitlements.add(new AccessEntitlement(ticket, EntitlementType.QUEUE_PRIORITY, null, null, FAST_TRACK_PRIORITY_LEVEL));
+		}
+
+		accessEntitlementRepository.saveAll(entitlements);
 	}
 
 	private Wristband findOrCreateWristbandForUpdateOrThrow(String rfidTag) {
@@ -232,7 +272,7 @@ public class VisitService {
 				return;
 			}
 
-			int maxCapacity = parkReferenceService.getActiveConfiguration().getMaxDailyCapacity();
+			int maxCapacity = parkReferenceService.getActiveMaxDailyCapacity();
 			try {
 				parkDayCapacityRepository.saveAndFlush(new ParkDayCapacity(visitDate, maxCapacity));
 			} catch (DataIntegrityViolationException e) {

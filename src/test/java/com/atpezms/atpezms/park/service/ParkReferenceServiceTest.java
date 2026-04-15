@@ -3,7 +3,6 @@ package com.atpezms.atpezms.park.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.atpezms.atpezms.park.entity.ParkConfiguration;
 import com.atpezms.atpezms.common.entity.SeasonType;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
@@ -25,15 +24,13 @@ class ParkReferenceServiceTest {
     @Autowired
     private ParkReferenceService parkReferenceService;
 
-    @Test
-    void shouldReturnActiveConfiguration() {
-        ParkConfiguration config = parkReferenceService.getActiveConfiguration();
-        
-        assertThat(config).isNotNull();
-        assertThat(config.isActive()).isTrue();
-        // Flyway V001 seeds the capacity to 5000
-        assertThat(config.getMaxDailyCapacity()).isEqualTo(5000);
-    }
+	@Test
+	void shouldReturnActiveMaxDailyCapacity() {
+		int maxDailyCapacity = parkReferenceService.getActiveMaxDailyCapacity();
+
+		// Flyway V001 seeds the capacity to 5000
+		assertThat(maxDailyCapacity).isEqualTo(5000);
+	}
 
     @Test
     void shouldReturnPeakWhenDateFallsInPeakPeriod() {
