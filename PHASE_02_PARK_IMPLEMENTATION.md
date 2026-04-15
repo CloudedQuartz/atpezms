@@ -30,9 +30,9 @@ All exception classes live in `com.atpezms.atpezms.park.exception` (new package,
 File: `V005__add_zone_description_and_active.sql`
 
 ```sql
-ALTER TABLE zones
-    ADD COLUMN description VARCHAR(500),
-    ADD COLUMN active BOOLEAN NOT NULL DEFAULT TRUE;
+-- H2 requires one column per ALTER TABLE statement.
+ALTER TABLE zones ADD COLUMN description VARCHAR(500);
+ALTER TABLE zones ADD COLUMN active BOOLEAN NOT NULL DEFAULT TRUE;
 ```
 
 ### V006 -- Add park_write_lock anchor table
