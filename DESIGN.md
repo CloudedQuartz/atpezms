@@ -292,7 +292,7 @@ Consolidation note: Safety and Telemetry are thin contexts. If scope pressure re
 
 **Core entities:**
 - **Visitor** -- A person visiting the park. Carries PII (name, age, height, contact information). Created at the ticket counter. Height is captured at registration for ride eligibility checks (SF-2). Persists across visits (a returning visitor is the same record).
-- **Wristband** -- An RFID wristband. Has a unique RFID tag and a lifecycle status (in-stock, active, deactivated). One active wristband per visitor at a time.
+- **Wristband** -- An RFID wristband. Has a unique RFID tag and a four-state lifecycle: `IN_STOCK` (stockroom, never issued), `ACTIVE` (visitor is currently inside the park in a live Visit session), `INACTIVE` (issued to a visitor, between visit sessions — e.g. overnight for a multi-day pass), `DEACTIVATED` (permanently retired). One active wristband per visitor at a time.
 - **Ticket** -- The purchase record. Links a Visitor to a PassType with a pricing snapshot (the price paid at time of purchase, which may differ from the current PassType price), validity window, and payment reference. A multi-day Ticket spans multiple Visits.
 - **PassType** -- A reference/configuration entity defining pass categories (Single-day, Multi-day, Ride-specific, Family, Fast-track) and their base pricing rules.
 - **Visit** -- One entry-to-exit session in the park. Created when a visitor enters (wristband activated). Ended when the visitor completes checkout (Section 5.4, Billing) and exits. Bills, transactions, and scan events all attach to a Visit, not directly to a Wristband or Visitor.
@@ -314,6 +314,10 @@ Consolidation note: Safety and Telemetry are thin contexts. If scope pressure re
 
 **Design assumptions:**
 - Multi-day passes: each day is a separate Visit with its own wristband assignment and billing cycle. The bill is settled per-visit at exit. The post-paid exit-gate model (FR-EB2) requires settlement before exit; accumulating charges across multiple days without settlement would be impractical.
+  - **Validity window is fixed at purchase time.** `visitDate` in the issuance request sets `valid_from`. `valid_to = valid_from + (multiDayCount - 1) days`. Both dates are immutable once the ticket is issued.
+  - **Capacity is reserved upfront for every day in the window** `[valid_from, valid_to]` inside the same issuance transaction. If any single day is sold out, the whole transaction rolls back and no capacity is consumed.
+  - **Skipping a day is the visitor's loss, not the system's problem.** If a visitor buys a 3-day pass starting April 15 and skips April 15, their capacity slot for that day is sunk. They can still enter on April 16 and April 17 because those slots were reserved at purchase.
+  - **Day-N entry (days 2, 3, ...):** the visitor returns with the same wristband (transitioned to `INACTIVE` at the previous day's exit-gate checkout — still physically on the visitor's wrist). The system verifies today falls within `[valid_from, valid_to]` and re-activates the wristband to start a new Visit. Implemented once checkout (Phase 4 Billing) enables Visit-end.
 - Ride-specific passes: grant access to a named set of rides via ride-level AccessEntitlements.
 - Fast-track passes: grant queue priority via a priority AccessEntitlement. The exact priority mechanism is defined in the Rides slice.
 - Family passes: a pricing category for group registration. Each family member gets their own Visitor record, Wristband, and individual billing. The "family" benefit is the discounted group rate at purchase time.

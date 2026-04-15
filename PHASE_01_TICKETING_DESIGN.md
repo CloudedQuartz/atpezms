@@ -216,11 +216,37 @@ Columns:
 - `status` (string: `IN_STOCK`, `ACTIVE`, `DEACTIVATED`)
 - `created_at`, `updated_at`
 
-Lifecycle:
+Lifecycle states:
 
-- `IN_STOCK` means the RFID is known to the system but not currently assigned.
-- `ACTIVE` means it is assigned to an active Visit.
-- `DEACTIVATED` means it must never be used again (lost/stolen/retired).
+| Status | Meaning |
+|---|---|
+| `IN_STOCK` | In the physical stockroom. Never issued to any visitor. Can be activated for any new issuance. |
+| `ACTIVE` | Visitor is **currently inside the park** in an active Visit session. |
+| `INACTIVE` | Issued to a specific visitor; physically on their wrist between visit sessions (overnight for multi-day passes). Not currently in an active Visit. Re-activatable **only** for that visitor's existing valid ticket. |
+| `DEACTIVATED` | Permanently retired. Never reused under any circumstances. |
+
+Why `INACTIVE` and not just keeping the wristband `ACTIVE` overnight:
+
+- `ACTIVE` is the signal every scan-processing context (Rides, Food, Merchandise) uses to conclude "this visitor is inside the park right now." An `ACTIVE` wristband with no live Visit behind it is an inconsistent state those contexts cannot reason about correctly.
+- The issuance guard rejects starting a new Visit on an `ACTIVE` wristband (`WRISTBAND_ALREADY_ACTIVE`). Day-N entry must start a new Visit, which requires the wristband to be in a non-ACTIVE state first.
+- `IN_STOCK` cannot be used because it implies the wristband is anonymous and can be issued to a stranger. `INACTIVE` preserves the binding to a specific visitor.
+
+State transitions:
+
+- `IN_STOCK` → `ACTIVE`: issuance (visitor enters park, Visit starts)
+- `ACTIVE` → `INACTIVE`: single-day or multi-day day-N checkout at exit gate (not final day of multi-day pass) — **Phase 4 Billing**
+- `ACTIVE` → `DEACTIVATED`: final-day checkout of a multi-day pass, or single-day pass checkout — **Phase 4 Billing**
+- Any state → `DEACTIVATED`: staff deactivation (lost, stolen, damaged) — **deferred admin operation**
+- `INACTIVE` → `ACTIVE`: day-N re-entry (visitor scans at entry gate, system verifies today ∈ `[valid_from, valid_to]`) — **deferred to after Phase 4 Billing**
+
+Deferred admin operation — wristband re-issue:
+
+If a visitor loses or damages their wristband between days (or for any other reason needs a replacement), a staff member must:
+1. Look up the visitor by ID.
+2. Deactivate the old wristband (`DEACTIVATED`).
+3. Issue a new wristband (`IN_STOCK` → `ACTIVE`) linked to the visitor's existing ticket, starting a new Visit.
+
+This operation is not implemented in Phase 1 or 2. It belongs in a staff management endpoint in a later operational phase.
 
 #### 4.2.3 `pass_types`
 
@@ -374,21 +400,57 @@ When issuing a ticket for a given `visit_date`:
 
 This ensures that even if multiple ticket counters issue tickets concurrently, we never exceed capacity.
 
-### 6.1 Multi-Day Pass Rule (Designed Now, Implemented Later)
+### 6.1 Multi-Day Pass Rule (Phase 1.2)
 
-When multi-day passes are enabled, the capacity rule changes from "one day" to "every day the ticket is valid":
+#### Validity window
 
-- Compute the ticket validity range: `valid_from` to `valid_to`.
-- For every date in that range, increment that day's `park_day_capacity.issued_count` using the same guarded update.
+`visitDate` in the issuance request is the **start** of the validity window. It maps directly to `valid_from`:
+
+```
+valid_from = visitDate
+valid_to   = visitDate + (multiDayCount - 1) days
+```
+
+Both dates are written to the `tickets` row at purchase time and are **immutable** — they never change after issuance.
+
+Rationale: the window is a contract made at purchase. Letting a visitor shift the window by simply not showing up on day 1 would allow unlimited deferral, which breaks capacity planning. If a visitor skips day 1, that day's reserved capacity slot is sunk — the same as not using a cinema ticket for the first half of a double feature.
+
+#### Capacity reservation
+
+When issuing a multi-day ticket, the capacity rule changes from "reserve one day" to "reserve every day in the window":
+
+- For every date `d` in `[valid_from, valid_to]`, attempt the guarded increment on `park_day_capacity`.
 - The entire issuance runs inside one database transaction.
 
-If any one day in the range is sold out, the operation fails and the transaction rolls back, meaning:
+If any one day in the range is sold out, the transaction rolls back:
 
 - no ticket is created
 - no visit is started
-- no capacity is reserved for any of the days
+- no capacity is consumed for any of the days
 
-Phase 1.1 defers multi-day issuance to keep the first implementation vertical and simple.
+This is all-or-nothing: a visitor either gets all their days or none. A partial reservation would leave them unable to enter on a day they expected to visit.
+
+#### Pricing
+
+The price is looked up **once** using `visitDate`'s attributes:
+
+- `ageGroup` — computed from visitor date of birth and `visitDate`
+- `dayType` — is `visitDate` a weekday or weekend?
+- `seasonType` — which season does `visitDate` fall in?
+
+The `pass_type_prices` table has MULTI_DAY rows. These prices represent the **total cost of the entire multi-day pass**, not a per-day rate. Looking up the price against the start date is correct and simple to explain: "you pay based on when you start your visit."
+
+#### Day-N entry (deferred — implemented after Phase 4 Billing)
+
+When a multi-day visitor returns on day 2, 3, etc.:
+
+1. They scan their RFID wristband at the entry gate. The wristband is the same physical band they wore on day 1 — it stays on their wrist between days. Modern RFID wristbands used in parks are water-resistant (IP67/IP68) and designed for continuous wear. Whether to procure waterproof bands is a hardware/operational decision outside this system.
+2. The system finds the wristband (`INACTIVE` — transitioned from `ACTIVE` at the previous day's exit-gate checkout).
+3. The system locates the most recent ended Visit for this wristband, reads its `ticket_id`, and checks `ticket.validFrom <= today <= ticket.validTo`.
+4. If valid, a new Visit is started: same ticket, same wristband, same visitor. No new ticket is created and no new price lookup is performed — the ticket is already paid for.
+5. If the visitor lost or damaged their wristband, a staff "re-issue wristband" admin operation (deferred to a later operational phase) deactivates the old tag and links a new one to the existing ticket.
+
+This flow is **not implemented in Phase 1.2**. Phase 1.2 implements issuance (day 1 only, Visit 1). The day-N entry endpoint is introduced once Phase 4 Billing enables Visit-end (checkout) to exist as a real operation.
 
 ---
 
@@ -571,5 +633,5 @@ Direction is one-way: scan-processing contexts depend on Ticketing; Ticketing do
 We will implement Phase 1 in sub-slices, each still following: detailed design (this doc) -> implementation -> verification.
 
 1. Phase 1.1 Visitor registration, pass type listing, single-day ticket issuance + capacity enforcement, wristband association, active visit creation, RFID resolution.
-2. Phase 1.2 Multi-day ticket issuance: reserve capacity for every day in validity window; define how new day visits start for an existing ticket.
+2. Phase 1.2 Multi-day ticket issuance: `valid_from = visitDate`, `valid_to = visitDate + multiDayCount - 1`, capacity reserved atomically for every day in `[valid_from, valid_to]`, all-or-nothing rollback if any day is sold out. Day-N entry rules designed in §6.1; implementation deferred to after Phase 4 Billing.
 3. Phase 1.3 AccessEntitlement creation rules for ride-specific and fast-track passes (data model already present), plus hardening (concurrency edge cases, additional validation, indexes, test coverage expansion).
