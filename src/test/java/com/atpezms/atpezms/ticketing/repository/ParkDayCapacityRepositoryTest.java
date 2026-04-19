@@ -25,6 +25,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @SpringBootTest
@@ -40,11 +41,16 @@ class ParkDayCapacityRepositoryTest {
     @Autowired
     private PlatformTransactionManager transactionManager;
 
+    @BeforeEach
+    void cleanUp() {
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+        tx.executeWithoutResult(status -> repository.deleteAll());
+    }
+
     @Test
     @Transactional
     void shouldIncrementWhenCapacityAvailable() {
-        LocalDate date = LocalDate.of(2026, 4, 20);
-        // Ensure the row exists in the DB before the JPQL bulk update executes.
+        LocalDate date = LocalDate.of(2099, 4, 20);
         repository.saveAndFlush(new ParkDayCapacity(date, 2));
 
         entityManager.clear();
@@ -75,44 +81,49 @@ class ParkDayCapacityRepositoryTest {
 
     @Test
     void shouldRollbackIncrementWhenTransactionRollsBack() {
-        LocalDate date = LocalDate.of(2026, 4, 21);
-        repository.saveAndFlush(new ParkDayCapacity(date, 1));
+        LocalDate date = LocalDate.of(2099, 4, 21);
 
         TransactionTemplate tx = new TransactionTemplate(transactionManager);
         tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 
-        Instant initialUpdatedAt = tx.execute(status -> {
-            entityManager.clear();
-            return repository.findByVisitDate(date).orElseThrow().getUpdatedAt();
-        });
-        assertThat(initialUpdatedAt).isNotNull();
+        tx.executeWithoutResult(status -> repository.saveAndFlush(new ParkDayCapacity(date, 1)));
 
-        tx.executeWithoutResult(status -> {
-            int updated = repository.incrementIfCapacityAvailable(date, initialUpdatedAt.plusSeconds(5));
-            assertThat(updated).isEqualTo(1);
-            status.setRollbackOnly();
-        });
+        try {
+            Instant initialUpdatedAt = tx.execute(status -> {
+                entityManager.clear();
+                return repository.findByVisitDate(date).orElseThrow().getUpdatedAt();
+            });
+            assertThat(initialUpdatedAt).isNotNull();
 
-        ParkDayCapacity afterRollback = tx.execute(status -> {
-            entityManager.clear();
-            return repository.findByVisitDate(date).orElseThrow();
-        });
+            tx.executeWithoutResult(status -> {
+                int updated = repository.incrementIfCapacityAvailable(date, initialUpdatedAt.plusSeconds(5));
+                assertThat(updated).isEqualTo(1);
+                status.setRollbackOnly();
+            });
 
-        assertThat(afterRollback.getIssuedCount()).isZero();
-        assertThat(afterRollback.getUpdatedAt()).isEqualTo(initialUpdatedAt);
+            ParkDayCapacity afterRollback = tx.execute(status -> {
+                entityManager.clear();
+                return repository.findByVisitDate(date).orElseThrow();
+            });
+
+            assertThat(afterRollback.getIssuedCount()).isZero();
+            assertThat(afterRollback.getUpdatedAt()).isEqualTo(initialUpdatedAt);
+        } finally {
+            tx.executeWithoutResult(status -> repository.findByVisitDate(date).ifPresent(repository::delete));
+        }
     }
 
     @Test
     void shouldNotOversellUnderConcurrency() throws Exception {
-        LocalDate date = LocalDate.of(2026, 4, 22);
+        LocalDate date = LocalDate.of(2099, 4, 22);
         int maxCapacity = 5;
         int attempts = 25;
         Duration timeout = Duration.ofSeconds(10);
 
-        repository.saveAndFlush(new ParkDayCapacity(date, maxCapacity));
-
         TransactionTemplate tx = new TransactionTemplate(transactionManager);
         tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+
+        tx.executeWithoutResult(status -> repository.saveAndFlush(new ParkDayCapacity(date, maxCapacity)));
 
         // Use one thread per attempt so all tasks can block on the latch and then start together.
         int poolSize = attempts;
@@ -151,13 +162,14 @@ class ParkDayCapacityRepositoryTest {
             assertThat(issued).isEqualTo(maxCapacity);
         } finally {
             executor.shutdownNow();
+            tx.executeWithoutResult(status -> repository.findByVisitDate(date).ifPresent(repository::delete));
         }
     }
 
     @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void shouldRequireExistingTransaction() {
-        assertThatThrownBy(() -> repository.incrementIfCapacityAvailable(LocalDate.of(2026, 4, 20), Instant.now()))
+        assertThatThrownBy(() -> repository.incrementIfCapacityAvailable(LocalDate.of(2099, 4, 20), Instant.now()))
                 .isInstanceOfAny(IllegalTransactionStateException.class, TransactionRequiredException.class);
     }
 }
