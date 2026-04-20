@@ -137,3 +137,26 @@ Service: TOCTOU safety (existsByUsername + DataIntegrityViolationException catch
 Controller: 5 REST endpoints under /api/identity/users.
 Adversarial review caught 3 critical bugs: missing TOCTOU catch, fragile FK in seed data, stale audit timestamps on updates.
 All 160 tests pass. Phase 3.2 design documented but implementation skipped.
+
+## 2026-04-20 - Implemented Phase 4 (Billing) — Financial Ledger
+Implemented the Billing bounded context: append-only financial ledger, bill aggregation per visit, and checkout payment processing via mocked payment gateway. Satisfies FR-FB1 (wristband billing), FR-EB1 (bill aggregation), FR-EB2 (exit control), CO-2 (transaction consistency), SI-1 (payment gateway mock).
+
+New bounded context: `com.atpezms.atpezms.billing`
+Migration: V008 creates `bills` and `transactions` tables with CHECK constraints for enum validation and non-negative totals. Uses BIGINT for all cent fields to prevent integer overflow.
+
+Entities: Bill (materialized aggregate with running totals), Transaction (append-only, no setters). Bill stores visitId as plain Long (cross-context boundary). Transaction has @ManyToOne to Bill (intra-context).
+
+Services: BillingService with recordTransaction (auto-creates bill if needed), getBill, settleBill. PaymentGateway interface + MockPaymentGateway (@Profile("!real-integrations")).
+
+Controller: 3 endpoints — POST /api/billing/transactions, GET /api/billing/visits/{visitId}/bill, POST /api/billing/visits/{visitId}/checkout.
+
+Key design decisions from adversarial review:
+- TOCTOU race in auto-create bill fixed with pessimistic locking (findByVisitIdForUpdate) + DataIntegrityViolationException retry.
+- All cent fields use `long` (not `int`) to prevent overflow at ~$21M.
+- settle() uses `=` (not `+=`) for settledAmountCents since a bill is settled exactly once.
+- paymentToken required when balance > 0; zero-balance checkout skips gateway.
+- Negative CHARGE transactions (credits/refunds) allowed via custom @NonZero validator.
+- getTransactions() returns unmodifiable list to prevent orphanRemoval cascade abuse.
+- saveAndFlush replaced with save (no need for immediate flush within same transaction).
+
+All 178 tests pass (160 existing + 18 new). Phase 3.2 security still deferred — all endpoints are currently unauthenticated.
