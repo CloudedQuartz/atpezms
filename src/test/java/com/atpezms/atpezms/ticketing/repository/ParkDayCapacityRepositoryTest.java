@@ -25,7 +25,6 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.junit.jupiter.api.BeforeEach;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @SpringBootTest
@@ -41,16 +40,10 @@ class ParkDayCapacityRepositoryTest {
     @Autowired
     private PlatformTransactionManager transactionManager;
 
-    @BeforeEach
-    void cleanUp() {
-        TransactionTemplate tx = new TransactionTemplate(transactionManager);
-        tx.executeWithoutResult(status -> repository.deleteAll());
-    }
-
     @Test
     @Transactional
     void shouldIncrementWhenCapacityAvailable() {
-        LocalDate date = LocalDate.of(2099, 4, 20);
+        LocalDate date = LocalDate.of(2026, 4, 20);
         repository.saveAndFlush(new ParkDayCapacity(date, 2));
 
         entityManager.clear();
@@ -81,7 +74,7 @@ class ParkDayCapacityRepositoryTest {
 
     @Test
     void shouldRollbackIncrementWhenTransactionRollsBack() {
-        LocalDate date = LocalDate.of(2099, 4, 21);
+        LocalDate date = LocalDate.of(2026, 4, 21);
 
         TransactionTemplate tx = new TransactionTemplate(transactionManager);
         tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -115,7 +108,7 @@ class ParkDayCapacityRepositoryTest {
 
     @Test
     void shouldNotOversellUnderConcurrency() throws Exception {
-        LocalDate date = LocalDate.of(2099, 4, 22);
+        LocalDate date = LocalDate.of(2026, 4, 22);
         int maxCapacity = 5;
         int attempts = 25;
         Duration timeout = Duration.ofSeconds(10);
@@ -169,7 +162,7 @@ class ParkDayCapacityRepositoryTest {
     @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void shouldRequireExistingTransaction() {
-        assertThatThrownBy(() -> repository.incrementIfCapacityAvailable(LocalDate.of(2099, 4, 20), Instant.now()))
+        assertThatThrownBy(() -> repository.incrementIfCapacityAvailable(LocalDate.of(2026, 4, 20), Instant.now()))
                 .isInstanceOfAny(IllegalTransactionStateException.class, TransactionRequiredException.class);
     }
 }

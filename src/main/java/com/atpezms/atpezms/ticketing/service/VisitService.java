@@ -4,6 +4,7 @@ import com.atpezms.atpezms.common.entity.SeasonType;
 import com.atpezms.atpezms.common.exception.BusinessRuleViolationException;
 import com.atpezms.atpezms.common.exception.ResourceNotFoundException;
 import com.atpezms.atpezms.common.exception.StateConflictException;
+import com.atpezms.atpezms.park.repository.ParkWriteLockRepository;
 import com.atpezms.atpezms.park.service.ParkReferenceService;
 import com.atpezms.atpezms.ticketing.dto.IssueVisitRequest;
 import com.atpezms.atpezms.ticketing.dto.IssueVisitResponse;
@@ -39,9 +40,6 @@ import java.util.List;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Core Ticketing use case: sell a ticket, associate a wristband, and start an ACTIVE visit.
@@ -65,8 +63,8 @@ public class VisitService {
 	private final AccessEntitlementRepository accessEntitlementRepository;
 	private final ParkDayCapacityRepository parkDayCapacityRepository;
 	private final ParkReferenceService parkReferenceService;
+	private final ParkWriteLockRepository parkWriteLockRepository;
 	private final Clock clock;
-	private final TransactionTemplate requiresNewTx;
 
 	public VisitService(
 			VisitorRepository visitorRepository,
@@ -78,8 +76,8 @@ public class VisitService {
 			AccessEntitlementRepository accessEntitlementRepository,
 			ParkDayCapacityRepository parkDayCapacityRepository,
 			ParkReferenceService parkReferenceService,
-			Clock clock,
-			PlatformTransactionManager transactionManager
+			ParkWriteLockRepository parkWriteLockRepository,
+			Clock clock
 	) {
 		this.visitorRepository = visitorRepository;
 		this.passTypeRepository = passTypeRepository;
@@ -90,9 +88,8 @@ public class VisitService {
 		this.accessEntitlementRepository = accessEntitlementRepository;
 		this.parkDayCapacityRepository = parkDayCapacityRepository;
 		this.parkReferenceService = parkReferenceService;
+		this.parkWriteLockRepository = parkWriteLockRepository;
 		this.clock = clock;
-		this.requiresNewTx = new TransactionTemplate(transactionManager);
-		this.requiresNewTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 	}
 
 	@Transactional
@@ -246,43 +243,28 @@ public class VisitService {
 	}
 
 	private void reserveCapacityOrThrow(LocalDate visitDate) {
+		// Acquire the park write lock before the find-or-create so that only one
+		// concurrent transaction can create the capacity row for a given date.
+		// This replaces the previous PROPAGATION_REQUIRES_NEW approach: because
+		// the lock serialises concurrent writers, no two transactions can both
+		// see "row absent" simultaneously, so the unique-constraint race is
+		// eliminated without needing a separate committed transaction.
+		// The lock is held until issueTicketAndStartVisit commits or rolls back,
+		// keeping the capacity row creation inside the main transactional boundary.
+		parkWriteLockRepository.acquireLock()
+				.orElseThrow(() -> new IllegalStateException("park_write_lock row missing — check V006 migration"));
+
+		parkDayCapacityRepository.findByVisitDate(visitDate)
+				.orElseGet(() -> {
+					int maxCapacity = parkReferenceService.getActiveMaxDailyCapacity();
+					return parkDayCapacityRepository.save(new ParkDayCapacity(visitDate, maxCapacity));
+				});
+
 		Instant now = Instant.now(clock);
 		int updated = parkDayCapacityRepository.incrementIfCapacityAvailable(visitDate, now);
-		if (updated == 1) {
-			return;
+		if (updated == 0) {
+			throw new BusinessRuleViolationException("CAPACITY_EXCEEDED", "Park has reached maximum daily capacity");
 		}
-
-		// Retry once if the day row was missing.
-		//
-		// We create the row in a separate transaction so a unique-constraint race
-		// (two issuances both trying to create the day row) cannot poison the main
-		// ticket issuance transaction.
-		createCapacityRowIfMissing(visitDate);
-		updated = parkDayCapacityRepository.incrementIfCapacityAvailable(visitDate, now);
-		if (updated == 1) {
-			return;
-		}
-
-		throw new BusinessRuleViolationException("CAPACITY_EXCEEDED", "Park has reached maximum daily capacity");
-	}
-
-	private void createCapacityRowIfMissing(LocalDate visitDate) {
-		requiresNewTx.executeWithoutResult(status -> {
-			if (parkDayCapacityRepository.findByVisitDate(visitDate).isPresent()) {
-				return;
-			}
-
-			int maxCapacity = parkReferenceService.getActiveMaxDailyCapacity();
-			try {
-				parkDayCapacityRepository.saveAndFlush(new ParkDayCapacity(visitDate, maxCapacity));
-			} catch (DataIntegrityViolationException e) {
-				// If this was the expected unique-key race, the row should now exist.
-				// If it still doesn't exist, rethrow because something else is wrong.
-				if (parkDayCapacityRepository.findByVisitDate(visitDate).isEmpty()) {
-					throw e;
-				}
-			}
-		});
 	}
 
 	private static DayType toDayType(LocalDate date) {

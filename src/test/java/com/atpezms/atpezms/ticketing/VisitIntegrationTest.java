@@ -13,6 +13,7 @@ import com.atpezms.atpezms.ticketing.repository.TicketRepository;
 import com.atpezms.atpezms.ticketing.repository.VisitRepository;
 import com.atpezms.atpezms.ticketing.repository.VisitorRepository;
 import com.atpezms.atpezms.ticketing.repository.WristbandRepository;
+import jakarta.persistence.EntityManager;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -26,14 +27,10 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import org.springframework.transaction.annotation.Transactional;
 
-import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.annotation.DirtiesContext.ClassMode;
-
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional
-@DirtiesContext(classMode = ClassMode.AFTER_CLASS)
 class VisitIntegrationTest {
 	@Autowired
 	private MockMvc mockMvc;
@@ -55,6 +52,9 @@ class VisitIntegrationTest {
 
 	@Autowired
 	private ParkDayCapacityRepository parkDayCapacityRepository;
+
+	@Autowired
+	private EntityManager entityManager;
 
 	@Autowired
 	private Clock clock;
@@ -144,6 +144,12 @@ class VisitIntegrationTest {
 		assertThat(parkDayCapacityRepository.findByVisitDate(todayUtc)).isPresent();
 		assertThat(parkDayCapacityRepository.findByVisitDate(todayUtc.plusDays(1))).isPresent();
 		assertThat(parkDayCapacityRepository.findByVisitDate(todayUtc.plusDays(2))).isPresent();
+
+		// The service uses a JPQL bulk UPDATE for incrementIfCapacityAvailable, which bypasses
+		// the persistence context (1st-level cache). Since the test shares the same transaction
+		// as the service, the entities are stale after the update. Clear the cache before
+		// asserting on issuedCount to ensure we read the committed DB value.
+		entityManager.clear();
 
 		parkDayCapacityRepository.findByVisitDate(todayUtc).ifPresent(cap ->
 				assertThat(cap.getIssuedCount()).isGreaterThanOrEqualTo(1));
