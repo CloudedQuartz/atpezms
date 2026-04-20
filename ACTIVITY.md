@@ -126,3 +126,14 @@ Updated the Phase 2 invariants/validation summary to correctly distinguish deser
 
 ## 2026-04-15 - Designed Phase 3 (Identity + Security Skeleton)
 Created `PHASE_03_IDENTITY_DESIGN.md` and `PHASE_03_IDENTITY_IMPLEMENTATION.md` covering two sub-slices: Phase 3.1 (StaffUser entity, Role enum, staff user management API) and Phase 3.2 (Spring Security JWT filter chain, login endpoint, endpoint authorization enforcement, actor auditing). Key design decisions and their rationale documented: StaffUser naming (SQL `USER` keyword conflict), Role as `@ElementCollection` (fixed closed set, YAGNI), HS256 JWT via Spring's native oauth2-jose (monolith, no distributed key sharing), timing-safe authentication (dummy BCrypt on missing user prevents username enumeration), AnonymousAuthenticationToken filtering in AuditorAware, complete @EnableJpaAuditing annotation preservation, JwtAuthenticationConverter required for custom `roles` claim. Also updated DESIGN.md §5.2, IMPLEMENTATION.md §1.1 and §9.2 for consistency.
+
+## 2026-04-20 - Implemented Phase 3.1 Identity Staff User Management
+Implemented the Identity bounded context with StaffUser CRUD — the first sub-slice of Phase 3. Phase 3.2 (JWT auth, Spring Security, @PreAuthorize) is skipped/deferred; design docs remain for future implementation.
+
+New bounded context: `com.atpezms.atpezms.identity`
+Migration: V007 creates `staff_users` and `staff_user_roles` tables, seeds default admin (BCrypt cost 12). Uses subquery for FK instead of hardcoding id=1.
+Entity: Role enum (8 values, @ElementCollection), StaffUser with immutable username, passwordHash never in responses, EAGER roles.
+Service: TOCTOU safety (existsByUsername + DataIntegrityViolationException catch), saveAndFlush for audit timestamps.
+Controller: 5 REST endpoints under /api/identity/users.
+Adversarial review caught 3 critical bugs: missing TOCTOU catch, fragile FK in seed data, stale audit timestamps on updates.
+All 160 tests pass. Phase 3.2 design documented but implementation skipped.

@@ -39,6 +39,11 @@ com.atpezms.atpezms.common.converter/   # JPA AttributeConverters for cross-cutt
 
 Sub-packages are created only when the context has classes of that type. An empty `dto/` package is not created preemptively.
 
+Current bounded contexts:
+- `ticketing` -- visitor registration, ticket issuance, RFID resolution (Phase 1)
+- `park` -- zone CRUD, park configuration, seasonal periods (Phase 2)
+- `identity` -- staff user management (Phase 3.1); JWT auth and role enforcement (Phase 3.2, not yet implemented)
+
 ### 1.2 Gradle Dependencies
 
 Dependencies are strictly added Just-In-Time (JIT) based on the YAGNI (You Aren't Gonna Need It) principle. There is no upfront "Global Infrastructure" phase that pre-loads unused dependencies. 
@@ -46,6 +51,7 @@ Dependencies are strictly added Just-In-Time (JIT) based on the YAGNI (You Aren'
 - The initial Spring Boot skeleton will start with the bare minimum required to compile (e.g., `spring-boot-starter-webmvc`).
 - Baseline persistence dependencies (`spring-boot-starter-data-jpa`, `spring-boot-starter-flyway`, H2) are only added when the first vertical slice requiring database access (e.g., Ticketing) is implemented.
 - Later slices add dependencies only if they introduce a genuinely new capability (e.g., adding a PDF library in the Analytics slice).
+- Phase 3.1 added `spring-security-crypto` for BCrypt password hashing (JIT -- only when `StaffUser` needed it). Phase 3.2 will replace this with `spring-boot-starter-oauth2-resource-server` which transitively includes Spring Security and BCryptPasswordEncoder.
 
 ---
 

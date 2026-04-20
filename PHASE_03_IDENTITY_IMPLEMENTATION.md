@@ -757,7 +757,33 @@ mockMvc.perform(get("/api/park/zones")
 
 ## 12. Step Plan
 
-### Phase 3.1 Steps
+### Phase 3.1 -- COMPLETED (commit 4c8ee86)
+
+All 12 steps completed. Key deviations and lessons learned from the adversarial review:
+
+1. **V007 seed data uses auto-increment, not hardcoded ID.** The original design doc showed `INSERT INTO staff_users (id, ...) VALUES (1, ...)` with an explicit `id=1`. The implementation omits the `id` column from the INSERT, letting H2's `AUTO_INCREMENT` assign it. The `staff_user_roles` foreign key uses a subquery (`SELECT id FROM staff_users WHERE username = 'admin'`) instead of hardcoding `1`, avoiding a latent bug if the auto-increment counter doesn't start at 1.
+
+2. **TOCTOU safety net in `createUser()`.** The `DataIntegrityViolationException` catch block is essential. Without it, two concurrent `POST /api/identity/users` requests with the same username can both pass the `existsByUsername()` check before either commits, producing a raw 500 instead of 409. This matches the same pattern in `ZoneService.createZone()`.
+
+3. **`saveAndFlush()` after role updates and deactivation.** JPA auditing (`@LastModifiedDate`) fires at flush time, not at entity mutation time. Without an explicit `saveAndFlush()` after `user.updateRoles()` or `user.deactivate()`, the response DTO would contain the stale `updatedAt` timestamp. The ZoneService update method documents this same pattern.
+
+4. **Class-level `@Transactional(readOnly = true)` on `StaffUserService`.** Matches the pattern established by `ZoneService`. Read methods inherit the class-level default; write methods override with `@Transactional`.
+
+5. **`@Validated` on `StaffUserController`.** Per IMPLEMENTATION.md §8.1, controllers that apply validation annotations to path variables must annotate the class with `@Validated`. Even though current path variables don't have validation annotations, adding `@Validated` is consistent and future-proof.
+
+6. **`Principal` → `Authentication` migration note.** Phase 3.1 uses `java.security.Principal` (not Spring Security's `Authentication`) because `spring-security-crypto` is the only security dependency. Phase 3.2 will switch to `Authentication` when `spring-boot-starter-oauth2-resource-server` is added.
+
+7. **Integration test uses dynamic ID lookup for seed admin.** Instead of hardcoding `id=1`, the test calls `staffUserRepository.findByUsername("admin")` to get the ID. This makes the test resilient to auto-increment counter changes.
+
+8. **Duplicate-username and validation integration tests.** The adversarial review flagged that the initial test suite lacked an integration test for the 409 duplicate-username scenario (the exact case the TOCTOU catch protects). Added `shouldReturn409WhenCreatingDuplicateUsername()`, plus 400-level validation edge cases for invalid usernames and short passwords.
+
+### Phase 3.2 -- SKIPPED (Deferred Indefinitely)
+
+Phase 3.2 (Security Skeleton — JWT auth, Spring Security, `@PreAuthorize`, actor auditing) is documented in §§8-11 below and in `PHASE_03_IDENTITY_DESIGN.md` §§2-9, but **implementation is skipped for now**. The design and step plan (§12) are complete and can be picked up in a future work session.
+
+Reason for skipping: Phase 3.2 is a large, cross-cutting change that touches every existing controller, service, and test file. Adding `spring-boot-starter-oauth2-resource-server` immediately breaks all tests (every request returns 401). Fixing that requires updating every `@WebMvcTest` with `@WithMockUser`, every `@SpringBootTest` with `.with(jwt())`, writing new AuthController/AuthService/SecurityConfig/JwtService classes, updating BaseEntity with `@CreatedBy`/`@LastModifiedBy`, adding V008 migration, and adding `@PreAuthorize` to all controller methods — all in one atomic commit. This is a lot of work that is better done in a dedicated session with full adversarial review.
+
+**The Phase 3.1 implementation is complete and fully tested (160 tests pass).** When Phase 3.2 is eventually implemented, the step plan in §12 should be followed exactly, treating steps 1-3 (add dependency + update all existing tests) as a single atomic unit that must land before the test suite can pass again.
 
 1. Write V007 migration.
 2. Add `Role` enum.
